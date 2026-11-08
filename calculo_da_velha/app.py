@@ -14,12 +14,12 @@ def main(page: ft.Page) -> None:
 
     status = ft.Text(f"Vez de {game.current_player.value}", size=20)
     feedback = ft.Text()
-    cells: list[ft.ElevatedButton] = []
+    cells: list[ft.Button] = []
 
     def refresh() -> None:
         for position, cell in enumerate(cells):
             mark = game.board[position]
-            cell.text = mark.value if mark else game.questions[position].prompt
+            cell.content = mark.value if mark else game.questions[position].prompt
             cell.disabled = mark is not None or game.status is not GameStatus.IN_PROGRESS
         if game.status is GameStatus.IN_PROGRESS:
             status.value = f"Vez de {game.current_player.value}"
@@ -61,8 +61,8 @@ def main(page: ft.Page) -> None:
         page.update()
 
     for position in range(Game.BOARD_SIZE):
-        cell = ft.ElevatedButton(
-            text=game.questions[position].prompt,
+        cell = ft.FilledButton(
+            content=game.questions[position].prompt,
             on_click=lambda _, selected=position: select_cell(selected),
             height=110,
             expand=True,

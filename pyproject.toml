@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "calculo-da-velha"
+version = "0.1.0"
+description = "Jogo da velha com desafios de matemática"
+requires-python = ">=3.10"
+dependencies = [
+    "flet>=0.25",
+]
+
+[project.scripts]
+calculo-da-velha = "calculo_da_velha.app:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["calculo_da_velha*"]

@@ -3,21 +3,61 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "calculo-da-velha"
-version = "0.1.0"
-description = "Jogo da velha com desafios de matemática"
+name = "math-tic-tac-toe"
+version = "0.2.0"
+description = "Tic-tac-toe with math challenges, in English and Portuguese"
 requires-python = ">=3.10"
+# Runtime dependencies: these are the packages bundled into the mobile app.
 dependencies = [
-    "flet>=0.25",
+    "flet>=1.0,<2",
 ]
 
-[project.scripts]
-calculo-da-velha = "calculo_da_velha.app:main"
+[project.optional-dependencies]
+# Development tools only; never bundled into the mobile app.
+dev = [
+    "flet[cli,web]>=1.0,<2",  # `flet run --android/--ios` and `flet build`
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff==0.17.3",
+]
+
+[tool.flet.app]
+# Folder packaged into the mobile app; its `main.py` is the entry point.
+path = "src"
+# Created inside `src/` by `pip install -e .`; not part of the app.
+exclude = ["math_tic_tac_toe.egg-info"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["math_tic_tac_toe*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
-pythonpath = ["."]
+# Every run measures coverage and fails if it drops below `fail_under`.
+addopts = "-q --cov"
+pythonpath = ["src"]
 
-[tool.setuptools.packages.find]
-include = ["calculo_da_velha*"]
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "N",    # naming conventions
+    "B",    # likely bugs
+    "UP",   # modern Python syntax
+    "SIM",  # simplifications
+]

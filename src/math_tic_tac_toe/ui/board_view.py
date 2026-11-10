@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from functools import partial
 
 import flet as ft
 
 from ..game import Game, Position
+from .events import ignoring_event
 from .layout import BOARD_SIDE, ScreenLayout
 from .presenter import CellState
 from .square_button import square_button, square_label
@@ -22,15 +24,15 @@ class BoardView:
                 "",
                 layout.cell_size,
                 layout.prompt_font_size,
-                on_click=lambda _, selected=position: on_select(selected),
+                on_click=ignoring_event(partial(on_select, position)),
             )
             for position in range(Game.BOARD_SIZE)
         ]
         self._rows = [
-            ft.Row(self.cells[start:start + BOARD_SIDE], tight=True)
+            ft.Row([*self.cells[start : start + BOARD_SIDE]], tight=True)
             for start in range(0, Game.BOARD_SIZE, BOARD_SIDE)
         ]
-        self.control = ft.Column(self._rows, tight=True)
+        self.control = ft.Column([*self._rows], tight=True)
         self.apply_layout(layout)
 
     def render(self, cells: Sequence[CellState]) -> None:

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "math-tic-tac-toe"
-version = "0.2.0"
+version = "0.3.0"
 description = "Tic-tac-toe with math challenges, in English and Portuguese"
 requires-python = ">=3.10"
 # Runtime dependencies: these are the packages bundled into the mobile app.
@@ -18,7 +18,8 @@ dev = [
     "flet[cli,web]>=1.0,<2",  # `flet run --android/--ios` and `flet build`
     "pytest>=8",
     "pytest-cov>=5",
-    "ruff==0.17.3",
+    "ruff==0.17.3",  # linter (with isort import sorting) and formatter
+    "mypy==2.4.1",  # static type checker
 ]
 
 [tool.flet.app]
@@ -35,7 +36,9 @@ include = ["math_tic_tac_toe*"]
 testpaths = ["tests"]
 # Every run measures coverage and fails if it drops below `fail_under`.
 addopts = "-q --cov"
-pythonpath = ["src"]
+# `src` for the app package; `.` so the tests import their helpers from
+# `tests.support`.
+pythonpath = ["src", "."]
 
 [tool.coverage.run]
 source = ["src"]
@@ -48,16 +51,63 @@ show_missing = true
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-src = ["src", "tests"]
+src = ["src", "."]
 
 [tool.ruff.lint]
 select = [
     "E",    # pycodestyle errors
     "W",    # pycodestyle warnings
     "F",    # pyflakes
-    "I",    # import sorting
+    "I",    # import sorting (isort)
     "N",    # naming conventions
     "B",    # likely bugs
     "UP",   # modern Python syntax
     "SIM",  # simplifications
+    "C4",   # comprehensions
+    "PIE",  # unnecessary code
+    "RET",  # return statements
+    "PTH",  # pathlib instead of os.path
+    "PERF", # performance pitfalls
+    "T20",  # leftover print() calls
+    "PGH",  # specific (not blanket) `type: ignore` / `noqa`
+    "ANN",  # type annotations everywhere
+    "PT",   # pytest style
+    "RUF",  # ruff-specific rules (includes unused `noqa` comments)
 ]
+# Math symbols shown to players, e.g. "7 × 3" and "9 − 4", are intentional.
+allowed-confusables = ["×", "−"]
+
+[tool.ruff.lint.isort]
+# Import groups: standard library, third party (flet, pytest), then our own
+# code: the app package and the tests package.
+known-first-party = ["math_tic_tac_toe", "tests"]
+
+[tool.ruff.format]
+# `ruff format` (Black-compatible) owns the layout of the code; CI checks it.
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src", "tests"]
+mypy_path = ["src"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+# Strict mode still applies to the tests, minus two kinds of false alarms:
+# - Tests walk Flet's control tree (e.g. `view.controls[0].content`), which
+#   Flet types loosely (a generic `Control`): attr-defined, union-attr,
+#   index, operator, no-any-return.
+# - Tests check the same state before and after a call (`assert not
+#   game.is_over`, play, `assert game.is_over`); mypy keeps the first
+#   narrowing and reports the second check: comparison-overlap, unreachable.
+module = ["tests.*"]
+disable_error_code = [
+    "attr-defined",
+    "union-attr",
+    "index",
+    "operator",
+    "no-any-return",
+    "comparison-overlap",
+]
+warn_unreachable = false

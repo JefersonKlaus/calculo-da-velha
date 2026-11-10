@@ -1,29 +1,46 @@
 """Settings screen: choose the operations and, for multiplication and
 division, the times tables. The play button starts a match with them.
 
-Everything starts selected; each tap selects or unselects one option.
+Everything starts selected; each tap selects or unselects one option. A hint
+below the title explains that the options in blue are the selected ones.
+Below "Play", the red "Hard mode" button starts a timed match instead.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 
 import flet as ft
 
-from ..settings import OPERATIONS, TABLES, GameSettings
-from .layout import LINE_HEIGHT, SECTION_SPACING, TABLES_PER_ROW, ScreenLayout
+from ..settings import OPERATIONS, TABLES, GameSettings, Operation
+from .events import ignoring_event
+from .layout import (
+    LINE_HEIGHT,
+    SECTION_SPACING,
+    SETTINGS_HINT_MAX_LINES,
+    TABLES_PER_ROW,
+    ScreenLayout,
+)
 from .square_button import square_button, square_label
-from .styles import option_button_style, square_button_style
+from .styles import (
+    HINT_COLOR,
+    hard_mode_button_style,
+    option_button_style,
+    square_button_style,
+)
 from .title_view import TitleView
 
 
 @dataclass(frozen=True)
 class SettingsLabels:
     title: str
+    hint: str
     operation: str
     times_table: str
     play: str
+    hard_mode: str
 
 
 class SettingsView:
@@ -32,6 +49,7 @@ class SettingsView:
         labels: SettingsLabels,
         settings: GameSettings,
         on_play: Callable[[GameSettings], None],
+        on_hard_mode: Callable[[GameSettings], None],
         refresh: Callable[[], None],
         layout: ScreenLayout,
     ) -> None:
@@ -39,6 +57,15 @@ class SettingsView:
         self._refresh = refresh
         self._layout = layout
         self._title = TitleView(labels.title, layout)
+        # Up to 2 lines (the layout reserves both), centered under the title.
+        self.hint = ft.Text(
+            labels.hint,
+            color=HINT_COLOR,
+            text_align=ft.TextAlign.CENTER,
+            style=ft.TextStyle(height=LINE_HEIGHT),
+            max_lines=SETTINGS_HINT_MAX_LINES,
+            overflow=ft.TextOverflow.ELLIPSIS,
+        )
         self.operation_label = _section_label(labels.operation)
         self.table_label = _section_label(labels.times_table)
         self.operation_buttons = {
@@ -46,7 +73,7 @@ class SettingsView:
                 operation.symbol,
                 layout.operation_button_size,
                 layout.operation_font_size,
-                on_click=lambda _, op=operation: self._change(self._settings.toggle_operation(op)),
+                on_click=ignoring_event(partial(self._toggle_operation, operation)),
             )
             for operation in OPERATIONS
         }
@@ -55,13 +82,14 @@ class SettingsView:
                 str(table),
                 layout.table_button_size,
                 layout.table_font_size,
-                on_click=lambda _, number=table: self._change(self._settings.toggle_table(number)),
+                on_click=ignoring_event(partial(self._toggle_table, table)),
             )
             for table in TABLES
         }
-        self._operation_row = ft.Row(list(self.operation_buttons.values()), tight=True)
+        self._operation_row = ft.Row([*self.operation_buttons.values()], tight=True)
+        table_buttons = list(self.table_buttons.values())
         self._table_rows = [
-            ft.Row(list(self.table_buttons.values())[start:start + TABLES_PER_ROW], tight=True)
+            ft.Row([*table_buttons[start : start + TABLES_PER_ROW]], tight=True)
             for start in range(0, len(TABLES), TABLES_PER_ROW)
         ]
         self.table_section = ft.Column(
@@ -76,13 +104,22 @@ class SettingsView:
             style=square_button_style(),
             on_click=lambda _: on_play(self._settings),
         )
+        self._hard_mode_label = ft.Text(labels.hard_mode, weight=ft.FontWeight.BOLD)
+        self.hard_mode_button = ft.FilledButton(
+            content=self._hard_mode_label,
+            icon=ft.Icons.TIMER,
+            style=hard_mode_button_style(),
+            on_click=lambda _: on_hard_mode(self._settings),
+        )
         self.control = ft.Column(
             [
                 self._title.control,
+                self.hint,
                 self.operation_label,
                 self._operation_row,
                 self.table_section,
                 self.play_button,
+                self.hard_mode_button,
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=SECTION_SPACING,
@@ -96,6 +133,8 @@ class SettingsView:
     def apply_layout(self, layout: ScreenLayout) -> None:
         self._layout = layout
         self._title.apply_layout(layout)
+        self.hint.size = layout.settings_hint_font_size
+        self.hint.width = layout.board_width
         for label in (self.operation_label, self.table_label):
             label.size = layout.status_font_size
         self._operation_row.spacing = layout.cell_spacing
@@ -106,10 +145,18 @@ class SettingsView:
             row.spacing = layout.cell_spacing
         for button in self.table_buttons.values():
             button.width = button.height = layout.table_button_size
-        self.play_button.width = layout.board_width
-        self.play_button.height = layout.restart_height
-        self._play_label.size = layout.restart_font_size
+        for button in (self.play_button, self.hard_mode_button):
+            button.width = layout.board_width
+            button.height = layout.restart_height
+        for label in (self._play_label, self._hard_mode_label):
+            label.size = layout.restart_font_size
         self._show_selection()
+
+    def _toggle_operation(self, operation: Operation) -> None:
+        self._change(self._settings.toggle_operation(operation))
+
+    def _toggle_table(self, table: int) -> None:
+        self._change(self._settings.toggle_table(table))
 
     def _change(self, settings: GameSettings) -> None:
         self._settings = settings

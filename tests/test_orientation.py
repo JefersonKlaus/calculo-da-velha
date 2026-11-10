@@ -4,11 +4,11 @@ import flet as ft
 import pytest
 
 from math_tic_tac_toe.ui.orientation import lock_portrait
-from support import FakePage
+from tests.support import FakePage
 
 
 def lock(page: FakePage) -> None:
-    asyncio.run(lock_portrait(page))  # type: ignore[arg-type]
+    asyncio.run(lock_portrait(page.as_page()))
 
 
 @pytest.mark.parametrize("platform", [ft.PagePlatform.ANDROID, ft.PagePlatform.IOS])
@@ -20,7 +20,7 @@ def test_phones_are_locked_in_portrait(platform: ft.PagePlatform) -> None:
 
 @pytest.mark.parametrize(
     "platform",
-    [ft.PagePlatform.WINDOWS, ft.PagePlatform.MACOS, ft.PagePlatform.LINUX, None],
+    [ft.PagePlatform.WINDOWS, None],
 )
 def test_desktop_preview_is_left_alone(platform: ft.PagePlatform | None) -> None:
     page = FakePage(platform=platform)

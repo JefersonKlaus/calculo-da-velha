@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
-
 import flet as ft
 
+from .events import ClickHandler
 from .styles import square_button_style
-
-ClickHandler = Callable[[Any], None]
 
 
 def square_button(label: str, size: int, font_size: int, on_click: ClickHandler) -> ft.FilledButton:

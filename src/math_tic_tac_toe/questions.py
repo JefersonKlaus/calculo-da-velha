@@ -1,18 +1,14 @@
-"""Math questions of the game: one problem maker per operation, plus the
-generator that picks a question and adds the answer choices.
-
-Prompts only use digits and math symbols, so they are the same in every
-language.
-"""
+"""How the game asks: picks a problem (see ``problems``) for a cell and adds
+the answer choices, one right and the others close to it."""
 
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from random import Random
-from typing import NamedTuple, Protocol
 
-from .settings import DEFAULT_SETTINGS, OPERATIONS, GameSettings, Operation
+from .problems import ProblemMaker, problems_for
+from .settings import DEFAULT_SETTINGS, GameSettings, Operation
 
 DEFAULT_CHOICE_COUNT = 3
 
@@ -27,94 +23,6 @@ class Question:
 
     def is_correct(self, response: int) -> bool:
         return response == self.answer
-
-
-class Problem(NamedTuple):
-    prompt: str
-    answer: int
-    operation: Operation
-
-
-class ProblemMaker(Protocol):
-    def problems(self, difficulty: int) -> Sequence[Problem]:
-        """Every problem this operation can ask at ``difficulty``."""
-        ...
-
-
-def max_operand(difficulty: int) -> int:
-    """Addition/subtraction numbers: up to 10, 15 or 20 by difficulty."""
-    return 5 + 5 * difficulty
-
-
-# A times table has only 10 facts and the board has 9 cells, so every cell
-# draws from the whole table; this keeps the questions on the board different.
-TABLE_FACTORS = range(1, 11)
-
-
-class AdditionProblems:
-    def problems(self, difficulty: int) -> list[Problem]:
-        numbers = range(1, max_operand(difficulty) + 1)
-        return [
-            Problem(f"{left} + {right}", left + right, Operation.ADDITION)
-            for left in numbers
-            for right in numbers
-        ]
-
-
-class SubtractionProblems:
-    """The result is never negative."""
-
-    def problems(self, difficulty: int) -> list[Problem]:
-        return [
-            Problem(f"{left} − {right}", left - right, Operation.SUBTRACTION)
-            for left in range(1, max_operand(difficulty) + 1)
-            for right in range(1, left + 1)
-        ]
-
-
-class MultiplicationProblems:
-    def __init__(self, tables: Iterable[int]) -> None:
-        self.tables = tuple(sorted(tables))
-
-    def problems(self, difficulty: int) -> list[Problem]:
-        return [
-            Problem(f"{table} × {factor}", table * factor, Operation.MULTIPLICATION)
-            for table in self.tables
-            for factor in TABLE_FACTORS
-        ]
-
-
-class DivisionProblems:
-    """The division tables: multiples of a table divided by it (e.g. 21 ÷ 7)."""
-
-    def __init__(self, tables: Iterable[int]) -> None:
-        self.tables = tuple(sorted(tables))
-
-    def problems(self, difficulty: int) -> list[Problem]:
-        return [
-            Problem(f"{table * quotient} ÷ {table}", quotient, Operation.DIVISION)
-            for table in self.tables
-            for quotient in TABLE_FACTORS
-        ]
-
-
-def problem_maker(operation: Operation, tables: Iterable[int]) -> ProblemMaker:
-    if operation is Operation.ADDITION:
-        return AdditionProblems()
-    if operation is Operation.SUBTRACTION:
-        return SubtractionProblems()
-    if operation is Operation.MULTIPLICATION:
-        return MultiplicationProblems(tables)
-    return DivisionProblems(tables)
-
-
-def problems_for(settings: GameSettings) -> list[ProblemMaker]:
-    """One problem maker per chosen operation, in the usual + − × ÷ order."""
-    return [
-        problem_maker(operation, settings.tables)
-        for operation in OPERATIONS
-        if operation in settings.operations
-    ]
 
 
 class QuestionGenerator:

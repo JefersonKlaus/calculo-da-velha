@@ -1,4 +1,5 @@
-# Validates every commit: ruff lint, the pytest suite and test coverage (>= 90%).
+# Validates every commit: ruff lint (including import order), ruff format,
+# mypy type checking, the pytest suite and test coverage (>= 90%).
 name: CI
 
 on:
@@ -12,7 +13,7 @@ permissions:
 
 jobs:
   lint:
-    name: Ruff lint
+    name: Lint, format and types
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,8 +37,18 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Ruff
+      - name: Ruff lint (with isort import order)
         run: ruff check --output-format=github .
+
+      # Fails if any file is not formatted; run `ruff format .` to fix.
+      - name: Ruff format
+        if: ${{ !cancelled() }}
+        run: ruff format --check .
+
+      # Strict type checking of the app and the tests (settings in pyproject.toml).
+      - name: Mypy
+        if: ${{ !cancelled() }}
+        run: mypy
 
   test:
     name: Pytest (Python ${{ matrix.python-version }})

@@ -10,18 +10,64 @@ every move requires solving a math question. Its Portuguese name is
 - The app opens on the **settings** screen (see below). Tap **Play** to start.
 - Each cell of the 3x3 board shows a math question.
 - Tap a cell: a modal shows the question and 3 possible answers.
+- Changed your mind? Tap **Cancel** (*Cancelar* in Portuguese) below the
+  answers: the modal closes, nothing changes (it is still your turn and the
+  cell keeps the same question) and you can choose another cell.
 - Right answer: the cell gets your mark (X or O) and the turn passes.
-  Wrong answer: the cell gets a new question and you keep the turn.
-- Each player has a color: **X is blue, O is orange**. The message showing
-  whose turn it is uses that player's color, like their marks on the board.
-- After each answer, a message shows **"Correct answer." in green** or
-  **"Wrong answer." in red**.
+  Wrong answer: the cell stays open with a new question and the turn also
+  passes: the other player picks a cell.
+- Each player has a color: **X is blue, O is purple**. The message showing
+  whose turn it is (*"Vez de X"*) changes to that player's color with each
+  turn, like their marks on the board (and their hard mode timer).
+- A wrong answer shows **"Wrong answer."** (*"Resposta incorreta."*) **in
+  red** below it. A right answer shows no message (the mark on the board is
+  enough) and clears the previous one.
 - When someone wins, the 3 cells of the winning line turn **gold**.
-- When the match ends (win or draw), a **Restart** button (*Jogar novamente*
-  in Portuguese) appears below the board to start a new match with the same
-  settings.
+- A button below the board starts a new match with the same settings. It is
+  always there, and its text tells what it does:
+  - during a match: **Restart** (*Recomeçar* in Portuguese), to give up the
+    current match and start over. Once someone has answered a question, a
+    confirmation asks first (*"Restart the match? The current match will be
+    lost."*): **Cancel** keeps playing, **Restart** starts over. Before the
+    first answer there is nothing to lose, so it starts over right away;
+  - once the match ends (win or draw): **Play again** (*Jogar novamente* in
+    Portuguese).
 - The **⚙ button** next to the title (or the phone's back button) returns to
   the settings screen. Tapping **Play** there starts a new match.
+
+## Hard mode
+
+Hard mode plays against the clock, like chess: **each player has a fixed
+amount of time for the whole match**, and whoever runs out of time loses.
+
+- On the settings screen, tap the red **Hard mode** button (*Modo difícil*)
+  below **Play**. A window shows the **time per player** (*Tempo por
+  jogador*), **1:00** to start with, above a red **bar**: slide it to choose
+  from **0:05 (5 seconds) to 5:00 (5 minutes)**, in steps of 5 seconds. The
+  ends of the bar show those limits. Nothing is typed, so the time is always
+  valid. Then tap **Start** (*Começar*). **Cancel** goes back to the
+  settings.
+- The game screen shows both timers below the title, each in its player's
+  color: **X on the left, O on the right**, as minutes:seconds. The timer of
+  the player whose turn it is has a light background in their color, and a
+  timer turns **red in its last 10 seconds**.
+- Only the player whose turn it is loses time, including while the question
+  window is open (thinking counts). Answering, right or wrong, passes the
+  clock to the other player along with the turn.
+- **When a timer reaches 0:00, that player loses** and the other one wins.
+  The screen says it like any other win, *"Game over: X wins!"* (*"Fim de
+  jogo: X venceu!"*), with the reason below in red: *"O ran out of time."*
+  (*"O ficou sem tempo."*). In that message **only the symbol keeps its
+  player's color** (a blue X or a purple O) so it is clear at a glance which
+  player it is about. **All of the winner's cells turn gold**, as the
+  winning line does in a normal win. If the question window was open, it
+  closes: an answer after that does not count.
+- The match can still end the usual way (three in a row or a draw); the
+  clock then stops.
+- **Play again** starts a new hard mode match with the same time, both
+  clocks full again. **Restart** during a match works as usual.
+- Leaving to the settings (⚙ or the back button) stops the clock. **Play**
+  starts a normal match (no timers); the red button starts hard mode again.
 
 ## Settings
 
@@ -31,7 +77,10 @@ selected**: all 4 operations and all 10 times tables.
 - **Operation**: 4 square buttons, **+ − × ÷**.
 - **Times table** (*Tabuada*): only shown when **×** or **÷** is selected.
   Buttons **1 to 10**.
-- Selected options are dark; unselected ones are light.
+- Selected options are **blue**; unselected ones are light grey. A small hint
+  below the title explains this: *"In blue: selected options. Tap an option to
+  select or unselect it."* (in Portuguese: *"Em azul: opções selecionadas.
+  Toque em uma opção para marcar ou desmarcar."*).
 - **Each tap changes only the option tapped**: a selected option becomes
   unselected, an unselected one becomes selected. The other options never
   change. For example, with everything selected, tapping **5** removes only
@@ -67,11 +116,14 @@ What each operation asks:
 - **Everything always fits**: the restart button can never be pushed off the
   screen. On screens that are not tall enough for a full-width board (iPads,
   unfolded foldables, square or landscape windows), the board shrinks just
-  enough for the whole screen to fit, restart button included. The space for
-  that button is reserved even while it is hidden, so nothing moves when a
-  match ends. On phones in portrait the board always gets the full width.
+  enough for the whole screen to fit, restart button included. That button
+  is always shown (only its text changes), so nothing moves when a match
+  ends. On phones in portrait the board always gets the full width. The
+  space for the hard mode timers is counted in both modes, so switching
+  modes never pushes anything off the screen (on an 800 × 1280 tablet the
+  board is therefore a little narrower than the full width).
   The settings screen is always shorter than the game screen, so its Play
-  button is never hidden either.
+  and Hard mode buttons are never hidden either.
 - If the screen size or the system bars change (e.g. split screen), the
   layout adapts immediately.
 
@@ -116,7 +168,7 @@ in the project root. Every command in this README assumes that environment is
 
 Why:
 
-- Flet, its CLI, pytest and ruff stay isolated from other Python projects, so
+- Flet, its CLI, pytest, ruff and mypy stay isolated from other Python projects, so
   everyone works with the same dependency versions.
 - Recent Linux distributions (e.g. Debian 12+, Ubuntu 23.04+) and Homebrew's
   Python refuse `pip install` outside a virtual environment
@@ -161,7 +213,7 @@ source .venv/bin/activate
 ```
 
 When it is active, the prompt starts with `(.venv)`. From then on, `python`,
-`pip`, `flet`, `pytest` and `ruff` refer to the venv on every platform. If the
+`pip`, `flet`, `pytest`, `ruff` and `mypy` refer to the venv on every platform. If the
 prompt does not show `(.venv)`, activate it before running anything else.
 
 > If PowerShell refuses to run `Activate.ps1` ("running scripts is disabled on
@@ -184,7 +236,7 @@ python -m pip install -e ".[dev]"
 - `-e` (editable) installs the package in place, so code changes take effect
   without reinstalling.
 - `[dev]` installs the development tools: the Flet CLI (`flet run`,
-  `flet build`), pytest, pytest-cov and ruff.
+  `flet build`), pytest, pytest-cov, ruff and mypy.
 
 Dependencies are declared in `pyproject.toml`:
 
@@ -276,10 +328,45 @@ flet build apk --yes
 With the venv active:
 
 ```powershell
-ruff check .         # lint
-ruff check --fix .   # lint and apply automatic fixes
+ruff check --fix .   # lint, sort the imports (isort) and apply automatic fixes
+ruff format .        # format the code (Black style)
+mypy                 # strict type checking of src/ and tests/
 pytest               # tests + coverage report
 ```
+
+Run all four before committing; CI runs the same checks and fails if any of
+them reports a problem (for formatting, it runs `ruff format --check`).
+
+### Code conventions
+
+The tools enforce them, configured in `pyproject.toml`:
+
+- **Imports** are sorted by ruff's isort rule (`I`), in three groups:
+  standard library, third party (`flet`, `pytest`), then this project
+  (`math_tic_tac_toe`, `tests`). There is no separate `isort` tool: ruff
+  implements the same rules, so the two never disagree.
+- **Formatting** is done by `ruff format` (the Black style, 100-character
+  lines). Only the winning-lines grid in `game.py` opts out
+  (`# fmt: off`), to keep its rows / columns / diagonals layout.
+- **Lint rules** cover errors, likely bugs, naming, modern syntax,
+  simplifications, comprehensions, return statements, pathlib, performance,
+  leftover `print()` calls, pytest style (e.g. `pytest.raises` always checks
+  the message with `match=`), type annotations everywhere, and unused or
+  blanket `noqa` / `type: ignore` comments. The math symbols `×` and `−`
+  shown to players are allowed in strings.
+- **Types**: every function is annotated and `mypy --strict` passes. In the
+  tests, only the errors caused by Flet's loosely typed control tree are
+  turned off (see `[tool.mypy]`). Tests hand their fake page to the app
+  with `FakePage.as_page()` instead of `type: ignore` comments, and tap
+  controls with `click(control)`; both live in `tests/support.py`.
+- **Dialogs and screens**: never switch screens while a dialog is still
+  closing. In Flet, `pop_dialog()` only starts closing a dialog; Flutter keeps
+  it attached to the screen it was opened on until its animation ends, so a
+  screen change at that moment leaves it behind, stuck open. Anything that
+  switches screens after a dialog must run from the dialog's `on_dismiss`
+  (as the hard mode dialog does). The tests' `FakePage` follows the same
+  rules and fails if a screen changes while a dialog is closing; call
+  `page.finish_closing_dialogs()` to simulate the end of the animation.
 
 ### Test coverage
 
@@ -300,14 +387,16 @@ pytest --cov-report=html
 The same checks run on GitHub for **every push to any branch and every pull
 request** (`.github/workflows/ci.yml`):
 
-- **Ruff lint**: `ruff check`, with problems shown inline on the commit/PR.
+- **Lint, format and types**: `ruff check` (problems shown inline on the
+  commit/PR), `ruff format --check` and `mypy`.
 - **Pytest**: the test suite with the 90% coverage minimum, on Python 3.10,
   3.11, 3.12, 3.13 and 3.14. The coverage table is shown on the run's summary
   page.
 
 CI also creates a venv and installs with `pip install -e ".[dev]"`, exactly as
-described above. Ruff is pinned to an exact version in `pyproject.toml`, so
-local and CI results always match; upgrade it on purpose.
+described above. Ruff and mypy are pinned to exact versions in
+`pyproject.toml`, so local and CI results always match; upgrade them on
+purpose.
 
 The game core (`game.py`) does not depend on Flet, so the rules are tested
 without running the app. The screen is tested too: `tests/test_app.py` starts
@@ -318,21 +407,24 @@ added in the next steps.
 ## Project structure
 
 ```
-.github/workflows/ci.yml      CI: lint, tests and coverage on every commit
-pyproject.toml                dependencies, Flet, pytest and ruff settings
+.github/workflows/ci.yml      CI: lint, format, types, tests and coverage on every commit
+pyproject.toml                dependencies, Flet, pytest, ruff and mypy settings
 src/                          everything packaged into the mobile app
   main.py                     mobile entry point (flet run / flet build)
   math_tic_tac_toe/           the game package
-tests/                        pytest suite
+tests/                        pytest suite (a package)
+  support.py                  helpers shared by the tests (fake page, click, ...)
 ```
 
 Each module in `src/math_tic_tac_toe/` has a single responsibility:
 
 | Module | Responsibility |
 | --- | --- |
-| `game.py` | Game rules: board, turns, victory (and its winning line), draw, end of match, no repeated questions on the board. Language-agnostic. |
-| `settings.py` | What players choose: any combination of operations (+ − × ÷) and times tables (1 to 10); everything by default. |
-| `questions.py` | One problem maker per operation, and the generator that picks a question and its answer choices. |
+| `game.py` | Game rules: board, turns, victory (and its winning line), draw, running out of time, end of match, no repeated questions on the board. Language-agnostic. |
+| `settings.py` | What players choose: any combination of operations (+ − × ÷) and times tables (1 to 10), everything by default; and the hard mode time limit. |
+| `clock.py` | Hard mode chess clock: each player's remaining time, running only on their turn and following the match's turns (no Flet; the time source can be replaced in tests). |
+| `problems.py` | What can be asked: every problem of each operation (+ and − by difficulty, × and ÷ from the chosen tables). |
+| `questions.py` | How it is asked: picks a problem for a cell (fairly across operations, without repeats on the board) and builds its answer choices. |
 | `app.py` | Builds the app: detects the language, creates both screens and wires them together. |
 | `i18n/language.py` | Supported languages and mapping of a device code (`pt-BR`) to one of them. |
 | `i18n/text_key.py` | Identifiers of every text shown to the user. |
@@ -344,17 +436,22 @@ Each module in `src/math_tic_tac_toe/` has a single responsibility:
 | `ui/responsive.py` | Reads the screen size and system bars; applies the layout again when they change. |
 | `ui/presenter.py` | Turns the game state into translated display data (no Flet). |
 | `ui/ports.py` | Interfaces the controller expects from the screen, grouped in `Screen` (no Flet). |
-| `ui/controller.py` | Connects screen events to the game rules; starts new matches (with new settings on Play). |
+| `ui/controller.py` | Connects screen events to the game rules; starts new matches (with new settings on Play); runs the hard mode clock. |
 | `ui/screens.py` | Common frame of both screens (margins, safe area, centering, scrolling). |
 | `ui/navigator.py` | Switches between the settings and the game screens (back button included). |
-| `ui/settings_view.py` | Settings screen: operation buttons, times table buttons and the Play button. |
+| `ui/settings_view.py` | Settings screen: operation buttons, times table buttons, the Play button and the red Hard mode button. |
+| `ui/hard_mode_dialog.py` | Modal of the Hard mode button: time per player chosen on a bar from 0:05 to 5:00 (1:00 by default) and Start. |
+| `ui/timers_view.py` | Hard mode: both players' timers below the title (hidden in normal matches). |
+| `ui/ticker.py` | Background loop that drives the hard mode clock a few times per second. |
 | `ui/game_header.py` | Top of the game screen: the title and the ⚙ settings button. |
 | `ui/title_view.py` | A screen title (single line, sized by the layout). |
 | `ui/board_view.py` | Draws the 3x3 board of square buttons across the full width, with the winning line in gold. |
 | `ui/question_dialog.py` | Modal showing the question and 3 answer choices. |
-| `ui/status_view.py` | Shows whose turn it is and feedback on the last move. |
-| `ui/restart_button.py` | Restart button as wide as the board, shown when a match ends. |
-| `ui/square_button.py`, `ui/styles.py` | Shared square-button look, player and feedback colors, fixed dialog sizes. |
+| `ui/status_view.py` | Shows whose turn it is (in that player's color) and, in red, a wrong answer or a player out of time. |
+| `ui/confirm_dialog.py` | Confirmation modal shown before the restart button throws away a match in progress. |
+| `ui/restart_button.py` | Restart button as wide as the board: "Restart" during a match, "Play again" after it. |
+| `ui/square_button.py`, `ui/styles.py` | Shared square-button look, player, feedback and hard mode colors, fixed dialog sizes. |
+| `ui/events.py` | Adapts Flet's event handlers to plain callbacks (`ignoring_event`). |
 
 Only the `ui/` modules (except `presenter.py` and `ports.py`) import Flet. The
 controller depends on the interfaces in `ui/ports.py`, so it is tested with

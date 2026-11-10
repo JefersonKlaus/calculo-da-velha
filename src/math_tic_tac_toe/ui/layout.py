@@ -4,14 +4,15 @@ The board is as big as possible: it fills the whole screen width (minus a
 small margin) as long as everything still fits vertically. On screens that
 are not tall enough for that (tablets, foldables, wide windows), the board
 shrinks until the whole screen fits, so the restart button is never pushed
-off the screen. Its space is always reserved, even while it is hidden.
+off the screen (it is always shown, during and after a match).
 
 Every font grows with the cells, so the title and messages stay in proportion
 with the board. Texts use a fixed line height so their height is known.
 
-The settings screen reuses the board width: 4 operation buttons in one row and
-the times tables in rows of 5. It is always shorter than the game screen, so
-whatever fits the game screen also fits the settings screen.
+The settings screen reuses the board width: a hint of up to 2 lines below the
+title, 4 operation buttons in one row and the times tables in rows of 5. It is
+always shorter than the game screen, so whatever fits the game screen also fits
+the settings screen.
 """
 
 from __future__ import annotations
@@ -20,13 +21,14 @@ from dataclasses import dataclass
 from math import ceil, floor, isqrt
 
 from ..game import Game
-from ..settings import TABLES
 
 BOARD_SIDE = isqrt(Game.BOARD_SIZE)
 PAGE_PADDING = 8
 CELL_SPACING = 8
 SECTION_SPACING = 10  # between title, messages, board and restart button
 MESSAGE_SPACING = 4  # between the turn message and the answer feedback
+TIMER_VERTICAL_PADDING = 2  # inside each hard mode timer, above and below its text
+TIMER_HORIZONTAL_PADDING = 12
 LINE_HEIGHT = 1.25  # line height of texts, as a multiple of the font size
 # Absorbs sub-pixel rounding differences between platforms.
 SAFETY_MARGIN = 8
@@ -45,6 +47,8 @@ RESTART_FONT_RATIO = 0.19
 TITLE_FONT_RATIO = 0.26  # leaves room for the settings button
 STATUS_FONT_RATIO = 0.2
 FEEDBACK_FONT_RATIO = 0.165
+SETTINGS_HINT_FONT_RATIO = 0.13
+SETTINGS_HINT_MAX_LINES = 2  # the space for both lines is always reserved
 
 
 @dataclass(frozen=True)
@@ -61,9 +65,7 @@ class ScreenSize:
     def usable_height(self) -> float | None:
         if not self.height or self.height <= 0:
             return None
-        return (
-            self.height - self.top_inset - self.bottom_inset - 2 * PAGE_PADDING - SAFETY_MARGIN
-        )
+        return self.height - self.top_inset - self.bottom_inset - 2 * PAGE_PADDING - SAFETY_MARGIN
 
 
 @dataclass(frozen=True)
@@ -88,6 +90,11 @@ class ScreenLayout:
         return max(text_height(self.title_font_size), MIN_TOUCH_TARGET)
 
     @property
+    def timers_height(self) -> int:
+        """Row of the two hard mode timers (text in the status font)."""
+        return text_height(self.status_font_size) + 2 * TIMER_VERTICAL_PADDING
+
+    @property
     def operation_button_size(self) -> int:
         return _buttons_per_row_size(self.board_width, OPERATIONS_PER_ROW, self.cell_spacing)
 
@@ -100,14 +107,23 @@ class ScreenLayout:
         return _buttons_per_row_size(self.board_width, TABLES_PER_ROW, self.cell_spacing)
 
     @property
+    def settings_hint_font_size(self) -> int:
+        return round(self.cell_size * SETTINGS_HINT_FONT_RATIO)
+
+    @property
     def table_font_size(self) -> int:
         return round(self.table_button_size * 0.4)
 
     @property
     def content_height(self) -> int:
-        """Height of everything on the game screen, restart button included."""
+        """Height of everything on the game screen, restart button included.
+
+        The hard mode timers are counted even when hidden, so both modes fit.
+        """
         return (
             self.header_height
+            + SECTION_SPACING
+            + self.timers_height
             + SECTION_SPACING
             + text_height(self.status_font_size)
             + MESSAGE_SPACING
@@ -116,25 +132,6 @@ class ScreenLayout:
             + self.board_width  # the board is square
             + SECTION_SPACING
             + self.restart_height
-        )
-
-    @property
-    def settings_content_height(self) -> int:
-        """Height of everything on the settings screen, play button included."""
-        table_rows = ceil(len(TABLES) / TABLES_PER_ROW)
-        return (
-            text_height(self.title_font_size)
-            + SECTION_SPACING
-            + text_height(self.status_font_size)  # "Operation" label
-            + SECTION_SPACING
-            + self.operation_button_size
-            + SECTION_SPACING
-            + text_height(self.status_font_size)  # "Times table" label
-            + self.cell_spacing
-            + table_rows * self.table_button_size
-            + (table_rows - 1) * self.cell_spacing
-            + SECTION_SPACING
-            + self.restart_height  # the play button has the restart button's size
         )
 
 
@@ -172,8 +169,3 @@ def layout_for_screen(screen: ScreenSize) -> ScreenLayout:
         while cell > MIN_CELL_SIZE and layout_for_cell(cell).content_height > usable_height:
             cell -= 1
     return layout_for_cell(cell)
-
-
-def layout_for_width(screen_width: float | None) -> ScreenLayout:
-    """Layout for a screen whose height is unknown or tall enough."""
-    return layout_for_screen(ScreenSize(screen_width))

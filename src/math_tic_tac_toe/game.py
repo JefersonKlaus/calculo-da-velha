@@ -17,6 +17,10 @@ class Mark(str, Enum):
     X = "X"
     O = "O"  # noqa: E741 - the tic-tac-toe mark, not a variable that may look like 0
 
+    @property
+    def opponent(self) -> Mark:
+        return Mark.O if self is Mark.X else Mark.X
+
 
 class GameStatus(str, Enum):
     IN_PROGRESS = "in_progress"
@@ -30,19 +34,22 @@ Line = tuple[Position, Position, Position]
 
 @dataclass(frozen=True)
 class MoveResult:
+    """How an answer went; the game itself holds the rest (board, turn,
+    status, winner)."""
+
     correct: bool
-    position: Position
-    status: GameStatus
-    winner: Mark | None
 
 
 class Game:
     BOARD_SIZE = 9
+    # One line each for the rows, the columns and the diagonals.
+    # fmt: off
     WINNING_LINES: tuple[Line, ...] = (
         (0, 1, 2), (3, 4, 5), (6, 7, 8),
         (0, 3, 6), (1, 4, 7), (2, 5, 8),
         (0, 4, 8), (2, 4, 6),
     )
+    # fmt: on
 
     def __init__(
         self,
@@ -58,6 +65,9 @@ class Game:
         self.status = GameStatus.IN_PROGRESS
         self.winner: Mark | None = None
         self.winning_line: Line | None = None
+        # Hard mode: the player who ran out of time (and lost the match).
+        self.timed_out: Mark | None = None
+        self._answers = 0
 
     @classmethod
     def with_settings(cls, settings: GameSettings) -> Game:
@@ -73,22 +83,37 @@ class Game:
     def is_over(self) -> bool:
         return self.status is not GameStatus.IN_PROGRESS
 
+    @property
+    def is_in_progress(self) -> bool:
+        """Started (at least one answer, right or wrong) and not over yet:
+        starting over would throw this match away."""
+        return self._answers > 0 and not self.is_over
+
     def is_available(self, position: Position) -> bool:
         """Tells whether the cell can still be played in this match."""
         self._validate_position(position)
         return not self.is_over and self.board[position] is None
 
     def answer(self, position: Position, response: int) -> MoveResult:
+        """Plays ``response`` to the question of ``position``.
+
+        Right: the cell gets the current player's mark and, unless the match
+        ends, the turn passes. Wrong: the cell stays open with a new question
+        (the other player has seen the choices of the old one) and the turn
+        passes too.
+        """
         self._validate_position(position)
         if self.is_over:
             raise ValueError("The match is already over.")
         if self.board[position] is not None:
             raise ValueError("This cell is already taken.")
 
+        self._answers += 1
         question = self.questions[position]
         if not question.is_correct(response):
             self.questions[position] = self._new_question(position)
-            return MoveResult(False, position, self.status, None)
+            self._pass_turn()
+            return MoveResult(correct=False)
 
         player = self.current_player
         self.board[position] = player
@@ -99,8 +124,19 @@ class Game:
         elif all(mark is not None for mark in self.board):
             self.status = GameStatus.DRAW
         else:
-            self.current_player = Mark.O if player is Mark.X else Mark.X
-        return MoveResult(True, position, self.status, self.winner)
+            self._pass_turn()
+        return MoveResult(correct=True)
+
+    def time_out(self, player: Mark) -> None:
+        """``player`` ran out of time (hard mode): the other player wins."""
+        if self.is_over:
+            raise ValueError("The match is already over.")
+        self.timed_out = player
+        self.winner = player.opponent
+        self.status = GameStatus.WON
+
+    def _pass_turn(self) -> None:
+        self.current_player = self.current_player.opponent
 
     def _new_question(self, position: Position) -> Question:
         """A question for ``position`` that differs from every question on the

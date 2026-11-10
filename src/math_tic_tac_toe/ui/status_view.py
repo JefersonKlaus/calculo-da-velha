@@ -1,12 +1,14 @@
-"""Texts showing whose turn it is and feedback on the last move."""
+"""Texts showing whose turn it is (in that player's color) and, below it in
+red, a wrong answer or a player out of time (that player's symbol keeps their
+color)."""
 
 from __future__ import annotations
 
 import flet as ft
 
 from .layout import LINE_HEIGHT, MESSAGE_SPACING, ScreenLayout
-from .presenter import FeedbackMessage, StatusMessage
-from .styles import feedback_color, player_color
+from .presenter import FeedbackMessage, MessagePart, StatusMessage
+from .styles import ALERT_COLOR, player_color
 
 
 class StatusView:
@@ -14,7 +16,7 @@ class StatusView:
         # Fixed line height: the layout relies on knowing these heights.
         text_style = ft.TextStyle(height=LINE_HEIGHT)
         self._status = ft.Text(weight=ft.FontWeight.BOLD, style=text_style)
-        self._feedback = ft.Text(weight=ft.FontWeight.BOLD, style=text_style)
+        self._feedback = ft.Text(weight=ft.FontWeight.BOLD, style=text_style, color=ALERT_COLOR)
         self.control = ft.Column(
             [self._status, self._feedback],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -32,6 +34,12 @@ class StatusView:
         self._status.color = player_color(message.player)
 
     def show_feedback(self, message: FeedbackMessage | None) -> None:
-        """Shows the result of the last answer; ``None`` clears it."""
-        self._feedback.value = message.text if message else ""
-        self._feedback.color = feedback_color(message.correct) if message else None
+        """Shows a red message (wrong answer, out of time) in which a player's
+        symbol keeps that player's color; ``None`` clears it."""
+        self._feedback.value = ""
+        self._feedback.spans = [_span(part) for part in message.parts] if message else []
+
+
+def _span(part: MessagePart) -> ft.TextSpan:
+    color = player_color(part.player) if part.player else ALERT_COLOR
+    return ft.TextSpan(part.text, style=ft.TextStyle(color=color))

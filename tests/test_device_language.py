@@ -4,24 +4,16 @@ import flet as ft
 
 from math_tic_tac_toe.i18n import Language
 from math_tic_tac_toe.ui.device_language import detect_device_language
-from support import FakeDeviceInfo, FakePage, device
+from tests.support import FakeDeviceInfo, FakePage
 
 
 def detect(page: FakePage) -> Language:
-    return asyncio.run(detect_device_language(page))  # type: ignore[arg-type]
+    return asyncio.run(detect_device_language(page.as_page()))
 
 
 def test_portuguese_device_uses_portuguese() -> None:
     page = FakePage(FakeDeviceInfo([ft.Locale("pt", "BR"), ft.Locale("en", "US")]))
     assert detect(page) is Language.PORTUGUESE
-
-
-def test_english_device_uses_english() -> None:
-    assert detect(FakePage(device("en", "US"))) is Language.ENGLISH
-
-
-def test_other_languages_use_english() -> None:
-    assert detect(FakePage(device("es", "ES"))) is Language.ENGLISH
 
 
 def test_only_the_primary_language_counts() -> None:

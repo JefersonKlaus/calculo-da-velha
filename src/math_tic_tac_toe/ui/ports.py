@@ -12,9 +12,10 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from ..questions import Question
-from .presenter import CellState, FeedbackMessage, StatusMessage
+from .presenter import CellState, FeedbackMessage, StatusMessage, TimerState
 
 AnswerHandler = Callable[[int], None]
+ConfirmHandler = Callable[[], None]
 
 
 class BoardDisplay(Protocol):
@@ -24,15 +25,33 @@ class BoardDisplay(Protocol):
 class StatusDisplay(Protocol):
     def show_status(self, message: StatusMessage) -> None: ...
 
-    def show_feedback(self, message: FeedbackMessage | None) -> None: ...
+    def show_feedback(self, message: FeedbackMessage | None) -> None:
+        """Shows a red message below the status; ``None`` clears it."""
+        ...
 
 
 class QuestionPrompt(Protocol):
     def ask(self, question: Question, on_answer: AnswerHandler) -> None: ...
 
+    def close(self) -> None:
+        """Closes the question if it is still open (e.g. the time ran out)."""
+        ...
+
+
+class TimerDisplay(Protocol):
+    def show_timers(self, timers: Sequence[TimerState]) -> None:
+        """Shows the players' timers; an empty sequence hides them."""
+        ...
+
 
 class RestartOption(Protocol):
-    def set_visible(self, visible: bool) -> None: ...
+    def set_label(self, label: str) -> None: ...
+
+
+class RestartConfirmation(Protocol):
+    def confirm(self, on_confirm: ConfirmHandler) -> None:
+        """Asks the player; calls ``on_confirm`` only if they agree."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -43,3 +62,5 @@ class Screen:
     status: StatusDisplay
     prompt: QuestionPrompt
     restart: RestartOption
+    confirm_restart: RestartConfirmation
+    timers: TimerDisplay

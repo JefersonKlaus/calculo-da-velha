@@ -12,7 +12,14 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from ..questions import Question
-from .presenter import CellState, FeedbackMessage, StatusMessage, TimerState
+from .presenter import (
+    CellState,
+    FeedbackMessage,
+    ScoreBoard,
+    StatusMessage,
+    TimerState,
+    TurnTime,
+)
 
 AnswerHandler = Callable[[int], None]
 ConfirmHandler = Callable[[], None]
@@ -29,9 +36,22 @@ class StatusDisplay(Protocol):
         """Shows a red message below the status; ``None`` clears it."""
         ...
 
+    def show_turn_time(self, time: TurnTime | None) -> None:
+        """Shows the seconds left on the turn next to it; ``None`` hides them
+        (no turn is running)."""
+        ...
+
 
 class QuestionPrompt(Protocol):
-    def ask(self, question: Question, on_answer: AnswerHandler) -> None: ...
+    def ask(
+        self, question: Question, on_answer: AnswerHandler, on_cancel: Callable[[], None]
+    ) -> None:
+        """Shows the question; ``on_cancel`` runs if the player cancels."""
+        ...
+
+    def show_time(self, time: TurnTime) -> None:
+        """Shows the seconds left on the turn, to answer the open question."""
+        ...
 
     def close(self) -> None:
         """Closes the question if it is still open (e.g. the time ran out)."""
@@ -44,11 +64,17 @@ class TimerDisplay(Protocol):
         ...
 
 
+class ScoreDisplay(Protocol):
+    def show_score(self, board: ScoreBoard | None) -> None:
+        """Shows the points of a best of N; ``None`` hides them."""
+        ...
+
+
 class RestartOption(Protocol):
     def set_label(self, label: str) -> None: ...
 
 
-class RestartConfirmation(Protocol):
+class Confirmation(Protocol):
     def confirm(self, on_confirm: ConfirmHandler) -> None:
         """Asks the player; calls ``on_confirm`` only if they agree."""
         ...
@@ -62,5 +88,7 @@ class Screen:
     status: StatusDisplay
     prompt: QuestionPrompt
     restart: RestartOption
-    confirm_restart: RestartConfirmation
+    confirm_restart: Confirmation
+    confirm_leave: Confirmation  # before leaving a match for the settings
     timers: TimerDisplay
+    score: ScoreDisplay

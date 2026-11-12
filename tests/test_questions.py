@@ -5,7 +5,7 @@ from random import Random
 import pytest
 
 from math_tic_tac_toe.problems import MultiplicationProblems, SubtractionProblems, problems_for
-from math_tic_tac_toe.questions import QuestionGenerator, question_factory_for
+from math_tic_tac_toe.questions import Question, QuestionGenerator, question_factory_for
 from math_tic_tac_toe.settings import OPERATIONS, Operation
 from tests.support import settings_of
 
@@ -95,3 +95,19 @@ def test_rejects_an_empty_list_of_problem_makers() -> None:
 def test_rejects_non_positive_difficulty() -> None:
     with pytest.raises(ValueError, match="Difficulty must be positive"):
         QuestionGenerator().generate(0)
+
+
+@pytest.mark.parametrize(
+    ("prompt", "answer", "largest"),
+    [("4 × 8", 32, 32), ("15 − 9", 6, 15), ("70 ÷ 7", 10, 70), ("3 + 12", 15, 15), ("1 × 1", 1, 1)],
+)
+def test_largest_number_of_the_calculation(prompt: str, answer: int, largest: int) -> None:
+    question = Question(prompt, answer, (answer,), Operation.MULTIPLICATION, 1)
+    assert question.largest_number == largest
+
+
+def test_every_real_question_has_a_largest_number() -> None:
+    generate = question_factory_for(settings_of(OPERATIONS), Random(7))
+    for difficulty in (1, 2, 3):
+        question = generate(difficulty, ())
+        assert question.largest_number >= max(question.answer, *numbers(question.prompt))

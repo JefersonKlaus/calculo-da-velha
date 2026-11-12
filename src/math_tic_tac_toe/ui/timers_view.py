@@ -1,8 +1,8 @@
 """Hard mode: the two players' timers, shown below the title.
 
 Each timer shows its player's mark and time in the player's color. The
-running one (whose turn it is) gets a light background in that color, and a
-timer turns red during its last seconds. Outside hard mode it is hidden.
+running one (whose turn it is) gets a dark background tinted with that color,
+and a timer turns red during its last seconds. Outside hard mode it is hidden.
 """
 
 from __future__ import annotations

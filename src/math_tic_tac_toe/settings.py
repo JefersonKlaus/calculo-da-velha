@@ -6,6 +6,10 @@ so players can keep all of them, just one, or any combination.
 
 Hard mode adds a time limit: each player has that many seconds for the whole
 match, like a chess clock.
+
+"Best of 5" plays for points instead: each line scores a point and is cleared,
+and the first player to reach the majority of 5 (3 points) wins. It is a mode
+of its own: it never has the hard mode time limit.
 """
 
 from __future__ import annotations
@@ -47,6 +51,9 @@ MIN_TIME_LIMIT = 5
 MAX_TIME_LIMIT = 5 * 60
 TIME_LIMIT_STEP = 5  # the time bar moves in steps of this many seconds
 
+# "Best of 5": the first player to score 3 points (a majority of 5) wins.
+BEST_OF_FIVE = 5
+
 Option = TypeVar("Option")
 
 
@@ -69,6 +76,9 @@ class GameSettings:
     tables: frozenset[int] = frozenset(TABLES)
     # Hard mode: seconds per player for the whole match; None plays untimed.
     time_limit: int | None = None
+    # Best of N (odd): lines score points and the majority wins; None plays a
+    # single game, which the first line wins.
+    best_of: int | None = None
 
     def __post_init__(self) -> None:
         # Accept any collection (e.g. a set or list) and store a frozenset.
@@ -82,6 +92,10 @@ class GameSettings:
             raise ValueError(
                 f"The time limit must be from {MIN_TIME_LIMIT} to {MAX_TIME_LIMIT} seconds."
             )
+        if self.best_of is not None and (self.best_of < 1 or self.best_of % 2 == 0):
+            raise ValueError("Best of must be a positive odd number of points.")
+        if self.best_of is not None and self.time_limit is not None:
+            raise ValueError("Best of and hard mode are different modes.")
 
     @property
     def uses_tables(self) -> bool:
@@ -97,6 +111,22 @@ class GameSettings:
         """The same choices in hard mode with ``seconds`` per player, or
         untimed with ``None``."""
         return replace(self, time_limit=seconds)
+
+    def with_best_of(self, points: int | None) -> GameSettings:
+        """The same choices played as a best of ``points`` (e.g. 5), or as a
+        single game with ``None``."""
+        return replace(self, best_of=points)
+
+    @property
+    def points_to_win(self) -> int:
+        """Points that win the match: the majority of ``best_of`` (3 of 5);
+        a single game is won by its first line."""
+        return points_to_win(self.best_of)
+
+
+def points_to_win(best_of: int | None) -> int:
+    """The majority of ``best_of`` points (3 of 5); 1 for a single game."""
+    return 1 if best_of is None else best_of // 2 + 1
 
 
 def is_valid_time_limit(seconds: int) -> bool:

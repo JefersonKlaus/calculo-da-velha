@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "math-tic-tac-toe"
-version = "0.3.0"
+version = "1.0.0"
 description = "Tic-tac-toe with math challenges, in English and Portuguese"
 requires-python = ">=3.10"
 # Runtime dependencies: these are the packages bundled into the mobile app.
@@ -21,6 +21,19 @@ dev = [
     "ruff==0.17.3",  # linter (with isort import sorting) and formatter
     "mypy==2.4.1",  # static type checker
 ]
+
+[tool.flet]
+# App icon: `src/assets/icon.png`, a transparent 1024x1024 glyph (the board with
+# a gold winning line). `flet build` frames it for each platform on this navy,
+# the app's background: flattened on iOS, the adaptive icon's background on
+# Android.
+icon_background = "#10182F"
+
+[tool.flet.splash]
+# Launch screen in the app's navy (not white) with the icon, in light and dark
+# mode alike, like the app itself.
+color = "#10182F"
+dark_color = "#10182F"
 
 [tool.flet.app]
 # Folder packaged into the mobile app; its `main.py` is the entry point.

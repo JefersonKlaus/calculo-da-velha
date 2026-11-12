@@ -9,7 +9,8 @@ import flet as ft
 import pytest
 
 import math_tic_tac_toe.app as app
-from math_tic_tac_toe.clock import ChessClock
+from math_tic_tac_toe.cell_timers import CellTimers
+from math_tic_tac_toe.clock import ChessClock, Countdown
 from math_tic_tac_toe.game import Game, Mark
 from math_tic_tac_toe.settings import (
     OPERATIONS,
@@ -23,14 +24,19 @@ from math_tic_tac_toe.ui.layout import (
     layout_for_screen,
 )
 from math_tic_tac_toe.ui.styles import (
+    ACCENT_COLOR,
     ALERT_COLOR,
+    BACKGROUND_COLOR,
     PLAYER_COLORS,
+    SELECTED_OPTION_COLOR,
     THEME_SEED_COLOR,
+    WINNER_MESSAGE_COLOR,
     WINNING_CELL_COLOR,
 )
 from tests.support import (
     FakePage,
     FakeTime,
+    background_of,
     click,
     device,
     layout_for_width,
@@ -59,8 +65,9 @@ class SettingsScreen:
             operations,
             self.tables,
             self.play,
-            self.hard_mode,
+            modes,
         ) = column.controls
+        self.best_of, self.hard_mode = modes.controls
         self.operations = dict(zip(OPERATIONS, operations.controls, strict=True))
         self.tables_label, *rows = self.tables.controls
         self.table_buttons = [button for row in rows for button in row.controls]
@@ -74,13 +81,17 @@ class SettingsScreen:
             click(self.table_buttons[table - 1])
 
     def selected_operations(self) -> list[Operation]:
-        return [op for op, button in self.operations.items() if button.style.bgcolor is None]
+        return [
+            op
+            for op, button in self.operations.items()
+            if background_of(button) == SELECTED_OPTION_COLOR
+        ]
 
     def selected_tables(self) -> list[int]:
         return [
             table
             for table, button in enumerate(self.table_buttons, start=1)
-            if button.style.bgcolor is None
+            if background_of(button) == SELECTED_OPTION_COLOR
         ]
 
 
@@ -98,6 +109,16 @@ class RunningApp:
         click(self.settings.play)
         self.find_game_controls()
 
+    def play_best_of(self) -> None:
+        click(self.settings.best_of)
+        self.find_game_controls()
+
+    def cell_countdown(self, position: int) -> tuple[str, str]:
+        """A cell of a best of 5: its question or mark and, below it, its
+        seconds."""
+        label, countdown = self.cells[position].content.controls
+        return label.value, countdown.value
+
     def play_hard_mode(self, seconds: int | None = None) -> None:
         """Taps "Hard mode", optionally moves the bar to ``seconds``, and
         taps "Start"."""
@@ -112,9 +133,12 @@ class RunningApp:
         self.find_game_controls()
 
     def find_game_controls(self) -> None:
-        header, self.timers, status, board, self.restart = content_of(self.page.views[-1])
+        header, self.timers, self.score, status, board, self.restart = content_of(
+            self.page.views[-1]
+        )
         _, self.title, self.settings_button = header.controls
-        self.status, self.feedback = status.controls
+        status_line, self.feedback = status.controls
+        self.status, self.turn_time = status_line.controls
         self.cells = [cell for row in board.controls for cell in row.controls]
 
     def tick(self) -> None:
@@ -135,7 +159,7 @@ class RunningApp:
 
     def answer(self, position: int, choice_index: int = 0) -> None:
         dialog = self.tap_cell(position)
-        _, choices = dialog.content.controls
+        *_, choices = dialog.content.controls
         click(choices.controls[choice_index])
         self.page.finish_closing_dialogs()
 
@@ -154,7 +178,14 @@ class RunningApp:
         return [(span.text, span.style.color) for span in self.feedback.spans or []]
 
     def labels(self) -> list[str]:
-        return [cell.content.value for cell in self.cells]
+        """Each cell's question or mark (without a best of 5's seconds)."""
+        return [label_of(cell) for cell in self.cells]
+
+
+def label_of(cell: ft.Control) -> str:
+    """A cell's question or mark; in a best of 5 its seconds go below it."""
+    content = cell.content
+    return content.controls[0].value if isinstance(content, ft.Column) else content.value
 
 
 @pytest.fixture(autouse=True)
@@ -162,6 +193,8 @@ def time(monkeypatch: pytest.MonkeyPatch) -> FakeTime:
     """The hard mode clock runs on a fake time that tests move by hand."""
     fake = FakeTime()
     monkeypatch.setattr(app, "ChessClock", partial(ChessClock, now=fake))
+    monkeypatch.setattr(app, "CellTimers", partial(CellTimers, now=fake))
+    monkeypatch.setattr(app, "Countdown", partial(Countdown, now=fake))
     return fake
 
 
@@ -173,7 +206,7 @@ def games(monkeypatch: pytest.MonkeyPatch) -> list[GameSettings]:
 
     def with_settings(cls: type[Game], settings: GameSettings) -> Game:
         created.append(settings)
-        return cls(question_factory)
+        return cls(question_factory, best_of=settings.best_of)
 
     monkeypatch.setattr(Game, "with_settings", classmethod(with_settings))
     return created
@@ -185,7 +218,7 @@ def test_opens_on_the_settings_screen() -> None:
     assert running.routes() == ["/"]
     assert settings.title.value == "Configurações"
     assert settings.hint.value == (
-        "Em azul: opções selecionadas. Toque em uma opção para marcar ou desmarcar."
+        "Em rosa: opções selecionadas. Toque em uma opção para marcar ou desmarcar."
     )
     assert settings.operation_label.value == "Operação"
     assert settings.tables_label.value == "Tabuada"
@@ -200,12 +233,19 @@ def test_opens_on_the_settings_screen() -> None:
     assert settings.selected_tables() == list(TABLES)
 
 
-def test_the_theme_is_blue_as_the_settings_hint_says() -> None:
+def test_the_theme_is_dark_navy_with_the_pink_the_settings_hint_talks_about() -> None:
     running = RunningApp(FakePage(device("en")), play=False)
-    # Selected options keep the filled button look, whose color comes from
-    # the theme: it must really be blue.
-    assert THEME_SEED_COLOR == ft.Colors.BLUE
-    assert running.page.theme.color_scheme_seed == THEME_SEED_COLOR
+    page = running.page
+    # The design is dark, whatever the phone's setting.
+    assert page.theme_mode == ft.ThemeMode.DARK
+    assert page.dark_theme is page.theme
+    assert page.bgcolor == BACKGROUND_COLOR
+    assert all(view.bgcolor == BACKGROUND_COLOR for view in page.views)
+    # Selected options are pink, the theme's accent: "In pink" must be true.
+    assert SELECTED_OPTION_COLOR == ACCENT_COLOR == THEME_SEED_COLOR == "#FF5D98"
+    assert page.theme.color_scheme_seed == THEME_SEED_COLOR
+    assert page.theme.color_scheme.primary == ACCENT_COLOR
+    assert page.theme.color_scheme.surface == BACKGROUND_COLOR
 
 
 def test_just_division_of_the_7_table(games: list[GameSettings]) -> None:
@@ -225,10 +265,10 @@ def test_settings_button_goes_back_and_a_new_match_uses_new_settings(
     games: list[GameSettings],
 ) -> None:
     running = RunningApp(FakePage(device("en")))
-    running.answer(0)
     assert running.settings_button.tooltip == "Settings"
 
-    click(running.settings_button)
+    click(running.settings_button)  # nobody answered yet: nothing to lose
+    assert running.page.dialogs == []
     assert running.routes() == ["/"]
 
     # + and − only: the times tables are hidden (and kept for later).
@@ -237,6 +277,72 @@ def test_settings_button_goes_back_and_a_new_match_uses_new_settings(
     running.play()
     assert games[-1] == settings_of([Operation.ADDITION, Operation.SUBTRACTION], TABLES)
     assert "X" not in running.labels()  # a brand new match
+
+
+def tap_settings(running: RunningApp) -> ft.AlertDialog | None:
+    """Taps the settings button; returns the confirmation, if one opened."""
+    open_before = len(running.page.dialogs)
+    click(running.settings_button)
+    return running.page.dialogs[-1] if len(running.page.dialogs) > open_before else None
+
+
+def test_settings_button_in_the_middle_of_a_match_asks_for_confirmation() -> None:
+    running = RunningApp(FakePage(device("pt", "BR")))
+    running.answer(0)
+
+    dialog = tap_settings(running)
+
+    assert dialog is not None
+    assert dialog.modal
+    assert dialog.title.value == "Sair da partida?"
+    assert dialog.content.value == "A partida atual será perdida."
+    cancel, confirm = dialog.actions
+    assert (cancel.content, confirm.content) == ("Cancelar", "Sair")
+    assert running.routes() == ["/", "/game"]  # nothing happens until they agree
+
+
+def test_canceling_the_settings_confirmation_keeps_the_match() -> None:
+    running = RunningApp(FakePage(device("en")))
+    running.answer(0)
+    dialog = tap_settings(running)
+    assert dialog is not None
+    cancel, _ = dialog.actions
+
+    click(cancel)
+    running.page.finish_closing_dialogs()
+
+    assert running.page.dialogs == []
+    assert running.routes() == ["/", "/game"]
+    assert running.labels()[0] == "X"  # the match goes on
+    assert running.status.value == "O's turn"
+
+
+def test_confirming_goes_to_the_settings_once_the_dialog_is_gone() -> None:
+    running = RunningApp(FakePage(device("en")))
+    running.answer(0)
+    dialog = tap_settings(running)
+    assert dialog is not None
+    _, confirm = dialog.actions
+
+    click(confirm)
+    click(confirm)  # a second tap while it is closing changes nothing
+    # Switching screens while the dialog is still closing would leave it
+    # behind, stuck open (the fake page fails if that happens).
+    assert running.routes() == ["/", "/game"]
+    running.page.finish_closing_dialogs()
+
+    assert running.routes() == ["/"]
+    assert running.page.dialogs == []
+    running.play()
+    assert "X" not in running.labels()  # Play starts a brand new match
+
+
+def test_settings_button_does_not_ask_once_the_match_is_over() -> None:
+    running = RunningApp(FakePage(device("en")))
+    for position in (0, 3, 1, 4, 2):
+        running.answer(position)
+    assert tap_settings(running) is None
+    assert running.routes() == ["/"]
 
 
 def test_phone_back_button_returns_to_the_settings() -> None:
@@ -260,7 +366,7 @@ def test_starts_in_english_on_any_other_device() -> None:
     assert running.page.title == "Math Tic-Tac-Toe"
     assert running.settings.title.value == "Settings"
     assert running.settings.hint.value == (
-        "In blue: selected options. Tap an option to select or unselect it."
+        "In pink: selected options. Tap an option to select or unselect it."
     )
     assert running.settings.play.content.value == "Play"
     assert running.status.value == "X's turn"
@@ -272,7 +378,9 @@ def test_tapping_a_cell_opens_the_question_modal() -> None:
     dialog = running.tap_cell(4)
     assert dialog.modal
     assert dialog.title.value == "Solve the question"
-    prompt, choices = dialog.content.controls
+    answer_time, prompt, choices = dialog.content.controls
+    _, seconds = answer_time.controls
+    assert seconds.value == "10"  # seconds left to answer
     assert prompt.value == "question 3"
     assert [button.content.value for button in choices.controls] == ["1", "2", "3"]
     (cancel,) = dialog.actions
@@ -291,8 +399,8 @@ def test_canceling_closes_the_modal_and_changes_nothing() -> None:
     assert running.status.value == "O's turn"
     assert running.feedback_text() == "Wrong answer."  # still about the last answer
 
-    running.answer(0)  # O can choose another cell
-    assert running.labels()[0] == "O"
+    running.answer(1)  # O can choose another cell
+    assert running.labels()[1] == "O"
 
 
 def test_choosing_an_answer_closes_the_modal_and_plays() -> None:
@@ -314,7 +422,9 @@ def test_wrong_answer_is_shown_in_red_and_passes_the_turn() -> None:
     running.answer(0, choice_index=1)  # choices are (1, 2, 3) and 1 is right
     assert running.page.dialogs == []
     assert running.feedback_colors() == [("Resposta incorreta.", ALERT_COLOR)]
-    assert running.labels()[0] == "question 1"  # still open, no mark
+    # The cell gets the other player's symbol, in their color.
+    assert running.labels()[0] == "O"
+    assert running.cells[0].content.color == PLAYER_COLORS[Mark.O]
     assert running.status.value == "Vez de O"
     assert running.status.color == PLAYER_COLORS[Mark.O]
 
@@ -352,6 +462,7 @@ def test_confirming_restarts_the_match() -> None:
     assert dialog is not None
     _, confirm = dialog.actions
     click(confirm)
+    running.page.finish_closing_dialogs()  # it acts once the dialog is gone
 
     assert running.page.dialogs == []
     assert running.restart.content.value == "Recomeçar"
@@ -367,9 +478,10 @@ def test_full_match_then_restart() -> None:
         running.answer(position)
 
     assert running.status.value == "Fim de jogo: X venceu!"
+    assert running.status.color == WINNER_MESSAGE_COLOR
     assert running.restart.content.value == "Jogar novamente"
     assert running.restart.visible is True
-    gold = [i for i, cell in enumerate(running.cells) if cell.style.bgcolor is not None]
+    gold = [i for i, cell in enumerate(running.cells) if background_of(cell) == WINNING_CELL_COLOR]
     assert gold == [0, 1, 2]
     assert all(
         cell.style.bgcolor[ft.ControlState.DISABLED] == WINNING_CELL_COLOR
@@ -385,7 +497,7 @@ def test_full_match_then_restart() -> None:
     assert "X" not in running.labels()
     assert "O" not in running.labels()
     assert not any(cell.disabled for cell in running.cells)
-    assert all(cell.style.bgcolor is None for cell in running.cells)
+    assert all(background_of(cell) != WINNING_CELL_COLOR for cell in running.cells)
 
 
 def test_mobile_entry_point_runs_the_app(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -434,7 +546,7 @@ def restart_fits(running: RunningApp, screen: ScreenSize) -> bool:
     layout = layout_for_screen(screen)
     assert running.restart.width == layout.board_width
     assert running.settings.play.width == layout.board_width
-    assert running.settings.hard_mode.width == layout.board_width
+    assert running.settings.hard_mode.width == layout.mode_button_width
     assert {cell.width for cell in running.cells} == {layout.cell_size}
     usable = screen.usable_height
     return (
@@ -491,14 +603,14 @@ def test_hard_mode_starts_a_timed_match(games: list[GameSettings]) -> None:
 def test_the_timers_run_for_the_player_whose_turn_it_is(time: FakeTime) -> None:
     running = RunningApp(FakePage(device("en")), play=False)
     running.play_hard_mode(90)
-    time.advance(10)
+    time.advance(9)
     running.tick()
-    assert running.timer_texts() == ["X  1:20", "O  1:30"]
+    assert running.timer_texts() == ["X  1:21", "O  1:30"]
 
     running.answer(0)  # X answers: O's time runs
-    time.advance(31)
+    time.advance(9)
     running.tick()
-    assert running.timer_texts() == ["X  1:20", "O  0:59"]
+    assert running.timer_texts() == ["X  1:21", "O  1:21"]
 
 
 def test_the_player_who_runs_out_of_time_loses(time: FakeTime) -> None:
@@ -514,15 +626,15 @@ def test_the_player_who_runs_out_of_time_loses(time: FakeTime) -> None:
 
     assert running.page.dialogs == []  # the question closed
     assert running.status.value == "Fim de jogo: X venceu!"
-    assert running.status.color == PLAYER_COLORS[Mark.X]
+    assert running.status.color == WINNER_MESSAGE_COLOR  # the winner, in gold
     assert running.feedback_text() == "O ficou sem tempo."
-    # Only the symbol keeps its player's color (purple O); the rest is red.
+    # Only the symbol keeps its player's color (pink O); the rest is red.
     assert running.feedback_colors() == [
         ("O", PLAYER_COLORS[Mark.O]),
         (" ficou sem tempo.", ALERT_COLOR),
     ]
     # Every cell of the winner turns gold; the loser's cell does not.
-    gold = [i for i, cell in enumerate(running.cells) if cell.style.bgcolor is not None]
+    gold = [i for i, cell in enumerate(running.cells) if background_of(cell) == WINNING_CELL_COLOR]
     assert gold == [0, 1]
     assert all(
         cell.style.bgcolor[ft.ControlState.DISABLED] == WINNING_CELL_COLOR
@@ -580,3 +692,137 @@ def test_hard_mode_dialog_is_gone_when_returning_to_the_settings() -> None:
     running.page.finish_closing_dialogs()
     assert running.page.dialogs == []
     assert running.routes() == ["/"]
+
+
+# ---- best of 5 -------------------------------------------------------------------
+# The test questions make corners last 1 second, edges 2 and the center 3.
+
+
+def test_best_of_five_from_the_settings(games: list[GameSettings], time: FakeTime) -> None:
+    running = RunningApp(FakePage(device("pt", "BR")), play=False)
+    assert running.settings.best_of.content.value == "Melhor de 5"
+    running.play_best_of()
+
+    assert games[-1] == GameSettings(best_of=5)
+    assert running.routes() == ["/", "/game"]
+    assert running.timers.visible is False
+    assert running.score.visible is True
+    x, goal, o = running.score.controls
+    assert (x.content.value, goal.value, o.content.value) == ("X  0", "Vence quem fizer 3", "O  0")
+
+    # A played cell counts down below its mark, then is open again.
+    running.answer(4)  # X in the center: 3 seconds
+    assert running.cell_countdown(4) == ("X", "3")
+    time.advance(1)
+    running.tick()
+    assert running.cell_countdown(4) == ("X", "2")
+
+    # A line scores a point, with a message: first it turns gold...
+    running.answer(0)  # O: 1 second
+    running.answer(1)  # X
+    running.answer(2)  # O: 1 second
+    running.answer(7)  # X completes the middle column
+    assert x.content.value == "X  1"
+    assert running.feedback_text() == "Ponto para X!"
+    assert running.status.value == "Vez de O"
+    gold = [p for p, cell in enumerate(running.cells) if background_of(cell) == WINNING_CELL_COLOR]
+    assert gold == [1, 4, 7]
+    assert [running.labels()[p] for p in gold] == ["X", "X", "X"]
+    assert all(cell.disabled for cell in running.cells)  # the board waits
+    assert running.restart.content.value == "Recomeçar"
+
+    time.advance(1)  # O's corners run out of time meanwhile
+    running.tick()
+    assert running.labels()[0] == "question 1"
+
+    time.advance(1)  # ...then the gold line disappears
+    running.tick()
+    cleared = [running.labels()[p] for p in (1, 4, 7)]
+    assert cleared == ["question 2", "question 3", "question 2"]
+    assert not any(background_of(cell) == WINNING_CELL_COLOR for cell in running.cells)
+    assert not any(cell.disabled for cell in running.cells)
+    assert running.status.value == "Vez de O"  # the turn does not change
+
+
+def test_best_of_five_is_won_at_3_points(time: FakeTime) -> None:
+    running = RunningApp(FakePage(device("en")), play=False)
+    running.play_best_of()
+    # O's wrong answers put X's symbol on the board.
+    running.answer(0)  # X
+    running.answer(1, choice_index=1)  # O is wrong: X's symbol
+    running.answer(2)  # X completes the top row
+    assert running.score.controls[0].content.value == "X  1"
+    time.advance(2)  # the line shows in gold, then disappears
+    running.tick()
+    running.answer(3, choice_index=1)  # O is wrong
+    running.answer(4)  # X
+    running.answer(5, choice_index=1)  # O is wrong and completes X's middle row
+    assert running.score.controls[0].content.value == "X  2"
+    assert running.feedback_text() == "Wrong answer. Point for X!"
+    assert running.status.value == "X's turn"
+    time.advance(2)
+    running.tick()
+    running.answer(6)  # X
+    running.answer(7, choice_index=1)  # O is wrong
+    running.answer(8)  # X completes the bottom row: the third point
+
+    assert running.status.value == "Game over: X wins!"
+    assert running.score.controls[0].content.value == "X  3"
+    assert running.restart.content.value == "Play again"
+    gold = [i for i, cell in enumerate(running.cells) if background_of(cell) == WINNING_CELL_COLOR]
+    assert gold == [6, 7, 8]
+    assert running.cells[6].content.value == "X"  # no countdown once it is over
+
+    assert tap_restart(running) is None  # over: nothing to lose
+    assert running.score.controls[0].content.value == "X  0"  # a fresh best of 5
+
+
+def test_play_after_a_best_of_five_is_a_single_game_again(games: list[GameSettings]) -> None:
+    running = RunningApp(FakePage(device("en")), play=False)
+    running.play_best_of()
+    click(running.settings_button)  # nobody answered: leaves right away
+    running.play()
+    assert games[-1].best_of is None
+    assert running.score.visible is False
+
+
+# ---- 10 seconds per turn -----------------------------------------------------------
+
+
+def test_each_turn_has_10_seconds_to_choose_and_answer(time: FakeTime) -> None:
+    running = RunningApp(FakePage(device("pt", "BR")))
+    _, seconds = running.turn_time.controls
+    assert seconds.value == "10"  # next to "Vez de X"
+
+    time.advance(6)
+    running.tick()
+    assert seconds.value == "4"
+    dialog = running.tap_cell(0)  # the same time goes on in the question
+    turn_time, _, _ = dialog.content.controls
+    assert turn_time.controls[1].value == "4"
+
+    time.advance(4)
+    running.tick()
+    assert running.page.dialogs == []  # time's up: the cell goes to O
+    assert running.labels()[0] == "O"
+    assert running.feedback_text() == "Tempo esgotado!"
+    assert running.status.value == "Vez de O"
+    assert seconds.value == "10"
+
+    time.advance(10)  # O does not even choose a cell: the turn passes
+    running.tick()
+    assert running.status.value == "Vez de X"
+    assert running.labels().count("O") == 1
+
+
+def test_only_cells_with_a_symbol_show_seconds_in_a_best_of_five(time: FakeTime) -> None:
+    running = RunningApp(FakePage(device("en")), play=False)
+    running.play_best_of()
+    assert all(isinstance(cell.content, ft.Text) for cell in running.cells)  # no seconds yet
+    running.answer(4)  # X takes it: its seconds show, in blue, and run
+    _, seconds = running.cells[4].content.controls
+    assert running.cell_countdown(4) == ("X", "3")
+    assert seconds.color == PLAYER_COLORS[Mark.X]
+    time.advance(1)
+    running.tick()
+    assert running.cell_countdown(4) == ("X", "2")

@@ -5,24 +5,56 @@ every move requires solving a math question. Its Portuguese name is
 *Cálculo da Velha*, a pun on *jogo da velha* (Portuguese for tic-tac-toe) and
 *cálculo* ("calculation").
 
+<p align="center">
+  <img src="docs/screenshots/app-icon.png" alt="App icon" width="96">
+</p>
+
+## Screenshots
+
+| Settings | A match | The question | A win |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/en-1-settings.png" width="180"> | <img src="docs/screenshots/en-2-game.png" width="180"> | <img src="docs/screenshots/en-3-question.png" width="180"> | <img src="docs/screenshots/en-4-win.png" width="180"> |
+
+| Best of 5 | Best of 5: a point | Hard mode | Hard mode match |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/en-5-best-of-5.png" width="180"> | <img src="docs/screenshots/en-6-best-of-5-point.png" width="180"> | <img src="docs/screenshots/en-7-hard-mode-time.png" width="180"> | <img src="docs/screenshots/en-8-hard-mode-match.png" width="180"> |
+
+In Portuguese: [settings](docs/screenshots/pt-1-configuracoes.png) and
+[a best of 5](docs/screenshots/pt-2-melhor-de-5.png). All screenshots are in
+`docs/screenshots/` (1170 × 2532, a 390 × 844 phone at 3×).
+
 ## How to play
 
 - The app opens on the **settings** screen (see below). Tap **Play** to start.
 - Each cell of the 3x3 board shows a math question.
 - Tap a cell: a modal shows the question and 3 possible answers.
+- **Each turn has 10 seconds to choose a cell and answer its question.**
+  The seconds left show next to whose turn it is (*"X's turn ⏱ 7"*) and,
+  while a question is open, above it; they turn red in the last 3. When
+  they reach zero, **"Time's up!"** (*"Tempo esgotado!"*) shows in red below
+  the turn message and:
+  - with a question open, the modal closes and it counts as a wrong answer
+    (the other player's mark goes on that cell);
+  - without one (no cell chosen), the turn simply passes.
+  Each new turn gets 10 new seconds.
 - Changed your mind? Tap **Cancel** (*Cancelar* in Portuguese) below the
   answers: the modal closes, nothing changes (it is still your turn and the
-  cell keeps the same question) and you can choose another cell.
+  cell keeps the same question) and you can choose another cell, **within
+  the same 10 seconds**: canceling does not stop or restart them.
 - Right answer: the cell gets your mark (X or O) and the turn passes.
-  Wrong answer: the cell stays open with a new question and the turn also
-  passes: the other player picks a cell.
-- Each player has a color: **X is blue, O is purple**. The message showing
+  **Wrong answer: the cell gets the other player's mark** and the turn also
+  passes. That mark counts like any other: if it completes the other
+  player's line, they win (or, in a best of 5, score the point).
+- Each player has a color: **X is blue, O is pink**. The message showing
   whose turn it is (*"Vez de X"*) changes to that player's color with each
-  turn, like their marks on the board (and their hard mode timer).
+  turn, like their marks on the board (a played cell is also outlined in
+  its player's color) and their hard mode timer.
 - A wrong answer shows **"Wrong answer."** (*"Resposta incorreta."*) **in
   red** below it. A right answer shows no message (the mark on the board is
   enough) and clears the previous one.
-- When someone wins, the 3 cells of the winning line turn **gold**.
+- When someone wins, the 3 cells of the winning line turn **gold**, and so
+  does the message about the winner (*"Game over: X wins!"*). A draw's
+  message keeps the normal color.
 - A button below the board starts a new match with the same settings. It is
   always there, and its text tells what it does:
   - during a match: **Restart** (*Recomeçar* in Portuguese), to give up the
@@ -34,14 +66,62 @@ every move requires solving a math question. Its Portuguese name is
     Portuguese).
 - The **⚙ button** next to the title (or the phone's back button) returns to
   the settings screen. Tapping **Play** there starts a new match.
+  Leaving throws the current match away, so during a match, once someone
+  has answered a question, the ⚙ button asks first (*"Leave the match? The
+  current match will be lost."*, in Portuguese *"Sair da partida? A partida
+  atual será perdida."*): **Cancel** keeps playing, **Leave** (*Sair*) goes
+  to the settings. Before the first answer, or once the match is over, it
+  goes right away. (The phone's back button does not ask.)
+
+## Best of 5
+
+Best of 5 (*Melhor de 5*) plays for points: **the first player to score 3
+points wins** (the majority of 5).
+
+- On the settings screen, tap the gold **Best of 5** button, below **Play**
+  (next to **Hard mode**). The game screen shows the score below the title:
+  **X's points on the left, O's on the right**, each in its player's color,
+  with *"First to 3 wins"* (*"Vence quem fizer 3"*) between them.
+- Cells are played as usual: choose and answer within the turn's 10
+  seconds. Right, your mark; wrong (or too late), the other player's mark;
+  and the turn passes.
+- **Each line scores a point**: first its 3 cells **turn gold** (with the
+  scorer's marks) for 1 second, so everyone sees where the point was; the
+  rest of the board waits meanwhile (nothing can be tapped). Then the gold
+  cells are cleared (each gets a new question) and the match goes on with
+  the other player's turn. The point is also announced below the turn
+  message: *"Point for X!"* (*"Ponto para X!"*), in
+  light text with the X in its color. **A move that completes two lines at
+  once scores two points**: both lines turn gold and are cleared, and the
+  message says *"2 points for X!"* (*"2 pontos para X!"*). When a wrong answer
+  completes the other player's line, the message says both, in red: *"Wrong
+  answer. Point for O!"* (or *"Time's up! Point for O!"*).
+- **Played cells do not last**: once a cell gets a mark, a number shows very
+  small below it, in **the color of that symbol** (blue X, pink O): **the
+  biggest number of the question answered there** (4 × 8 = 32: 32 seconds;
+  15 − 9 = 6: 15 seconds), at most 60 (70 ÷ 7: 60 seconds). It counts down
+  (32, 31, 30, ...) in real time, whoever's turn it is. **When it reaches
+  zero, the cell is open again** with a new question; the turn does not
+  change. Cells without a symbol show no number.
+- There are no draws: if the board is full, the player whose turn it is
+  cannot choose a cell, so their 10 seconds run out and the turn passes
+  until a cell opens.
+- While a point shows in gold, no turn time runs: the next player's 10
+  seconds start once the gold line disappears.
+- **The third point wins the match** (if two points at once go past 3, the
+  score stops at 3): its line (or both lines) turns gold and stays, the
+  countdowns stop and the status says *"Game over: X wins!"*. **Play again**
+  starts a new best of 5 (0 to 0); **Restart** and ⚙ work as usual.
+- Best of 5 has no hard mode timers: it is a mode of its own. **Play**
+  starts a normal match again.
 
 ## Hard mode
 
 Hard mode plays against the clock, like chess: **each player has a fixed
 amount of time for the whole match**, and whoever runs out of time loses.
 
-- On the settings screen, tap the red **Hard mode** button (*Modo difícil*)
-  below **Play**. A window shows the **time per player** (*Tempo por
+- On the settings screen, tap the red **Hard mode** button (*Modo difícil*,
+  white text) below **Play**, next to **Best of 5**. A window shows the **time per player** (*Tempo por
   jogador*), **1:00** to start with, above a red **bar**: slide it to choose
   from **0:05 (5 seconds) to 5:00 (5 minutes)**, in steps of 5 seconds. The
   ends of the bar show those limits. Nothing is typed, so the time is always
@@ -49,8 +129,8 @@ amount of time for the whole match**, and whoever runs out of time loses.
   settings.
 - The game screen shows both timers below the title, each in its player's
   color: **X on the left, O on the right**, as minutes:seconds. The timer of
-  the player whose turn it is has a light background in their color, and a
-  timer turns **red in its last 10 seconds**.
+  the player whose turn it is has a dark background tinted with their color,
+  and a timer turns **red in its last 10 seconds**.
 - Only the player whose turn it is loses time, including while the question
   window is open (thinking counts). Answering, right or wrong, passes the
   clock to the other player along with the turn.
@@ -58,7 +138,7 @@ amount of time for the whole match**, and whoever runs out of time loses.
   The screen says it like any other win, *"Game over: X wins!"* (*"Fim de
   jogo: X venceu!"*), with the reason below in red: *"O ran out of time."*
   (*"O ficou sem tempo."*). In that message **only the symbol keeps its
-  player's color** (a blue X or a purple O) so it is clear at a glance which
+  player's color** (a blue X or a pink O) so it is clear at a glance which
   player it is about. **All of the winner's cells turn gold**, as the
   winning line does in a normal win. If the question window was open, it
   closes: an answer after that does not count.
@@ -77,10 +157,10 @@ selected**: all 4 operations and all 10 times tables.
 - **Operation**: 4 square buttons, **+ − × ÷**.
 - **Times table** (*Tabuada*): only shown when **×** or **÷** is selected.
   Buttons **1 to 10**.
-- Selected options are **blue**; unselected ones are light grey. A small hint
-  below the title explains this: *"In blue: selected options. Tap an option to
-  select or unselect it."* (in Portuguese: *"Em azul: opções selecionadas.
-  Toque em uma opção para marcar ou desmarcar."*).
+- Selected options are **pink**; unselected ones are navy (dark blue). A
+  small hint below the title explains this: *"In pink: selected options. Tap
+  an option to select or unselect it."* (in Portuguese: *"Em rosa: opções
+  selecionadas. Toque em uma opção para marcar ou desmarcar."*).
 - **Each tap changes only the option tapped**: a selected option becomes
   unselected, an unselected one becomes selected. The other options never
   change. For example, with everything selected, tapping **5** removes only
@@ -101,9 +181,29 @@ What each operation asks:
   so they appear about equally often (addition has hundreds of possible
   questions, a times table only 10).
 - The 9 questions on the board are always different from each other, and a
-  wrong answer always brings a question that is not on the board. (A times
-  table has 10 facts, so there is always one left.)
+  cell that opens again (best of 5) always gets a question that is not on
+  the board. (A times table has 10 facts, so there is always one left.)
 - Settings last while the app is open; they are not saved when it closes.
+
+## Look
+
+The colors follow the design in `docs/design/`: a **dark** app, whatever the
+phone's light/dark setting. All of them live in `ui/styles.py`.
+
+| Color | Used for |
+| --- | --- |
+| Dark navy `#10182F` | Background of every screen (and of the phone's system bars) |
+| Navy `#202E56`, outlined in `#394A79` | Board cells, unselected options, dialogs, the restart and ⚙ buttons |
+| Light navy `#2A3B6B` | Answer choices inside the question window |
+| Near white `#E1E2E8` / grey blue `#7E89AB` | Texts / hints and section labels |
+| Pink `#FF5D98` (white text) | Selected options, the Play button and the main button of a dialog |
+| Blue `#65B5FF` / pink `#FF5D98` | Player X / player O |
+| Gold `#FFCF69` (dark navy text) | The winner's cells (and a best of 5 point for 1 second), the winner's message, the Best of 5 button |
+| Soft red `#FF7A7A` | Wrong answer, time's up, out of time, a timer's last seconds |
+| Red `#DC3545` (white text) | The Hard mode and Start buttons, the hard mode time bar |
+
+Square buttons (cells, options, answer choices) have rounded corners; the
+Play, Best of 5, Hard mode and restart buttons are pills.
 
 ## Screen and orientation
 
@@ -119,11 +219,14 @@ What each operation asks:
   enough for the whole screen to fit, restart button included. That button
   is always shown (only its text changes), so nothing moves when a match
   ends. On phones in portrait the board always gets the full width. The
-  space for the hard mode timers is counted in both modes, so switching
-  modes never pushes anything off the screen (on an 800 × 1280 tablet the
+  space for the hard mode timers (which a best of 5 uses for its score) is
+  counted in every mode, so switching modes never pushes anything off the
+  screen (on an 800 × 1280 tablet the
   board is therefore a little narrower than the full width).
-  The settings screen is always shorter than the game screen, so its Play
-  and Hard mode buttons are never hidden either.
+  The settings screen is always shorter than the game screen, so its Play,
+  Best of 5 and Hard mode buttons are never hidden either: the last two
+  share a row, and their icons and margins grow with the screen so their
+  labels always fit.
 - If the screen size or the system bars change (e.g. split screen), the
   layout adapts immediately.
 
@@ -229,8 +332,8 @@ prompt does not show `(.venv)`, activate it before running anything else.
 With the venv active:
 
 ```powershell
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+pip install --upgrade pip
+pip install -e ".[dev]"
 ```
 
 - `-e` (editable) installs the package in place, so code changes take effect
@@ -313,6 +416,21 @@ flet build apk --yes
 - Before publishing to the stores, set the app identity in `pyproject.toml`
   under `[tool.flet]`: `org` (e.g. `com.yourcompany`, which forms the bundle
   ID), `product` (name under the app icon) and `company`.
+
+### App icon and launch screen
+
+- The icon is `src/assets/icon.png`: a **transparent** 1024 × 1024 image of
+  the board (the winning X line in gold, pink O's and the four operations).
+  `flet build` generates every size each platform needs from it, with the
+  margins their masks require, on the navy set as `icon_background` under
+  `[tool.flet]` in `pyproject.toml`: flattened on iOS (the App Store rejects
+  transparency), the adaptive icon's background on Android.
+- The launch (splash) screen uses the same icon on that navy
+  (`[tool.flet.splash]`, in light and dark mode), so the app does not flash
+  white while it starts.
+- To change the icon, replace `src/assets/icon.png` with another transparent
+  square PNG (1024 × 1024 or more) and build again. A preview of the framed
+  icon is `docs/screenshots/app-icon.png`.
 
 ### Troubleshooting
 
@@ -411,7 +529,10 @@ added in the next steps.
 pyproject.toml                dependencies, Flet, pytest, ruff and mypy settings
 src/                          everything packaged into the mobile app
   main.py                     mobile entry point (flet run / flet build)
+  assets/icon.png             app icon (flet build makes every size from it)
   math_tic_tac_toe/           the game package
+docs/design/                  the design the app's colors follow
+docs/screenshots/             screenshots of the app and a preview of its icon
 tests/                        pytest suite (a package)
   support.py                  helpers shared by the tests (fake page, click, ...)
 ```
@@ -420,11 +541,12 @@ Each module in `src/math_tic_tac_toe/` has a single responsibility:
 
 | Module | Responsibility |
 | --- | --- |
-| `game.py` | Game rules: board, turns, victory (and its winning line), draw, running out of time, end of match, no repeated questions on the board. Language-agnostic. |
-| `settings.py` | What players choose: any combination of operations (+ − × ÷) and times tables (1 to 10), everything by default; and the hard mode time limit. |
-| `clock.py` | Hard mode chess clock: each player's remaining time, running only on their turn and following the match's turns (no Flet; the time source can be replaced in tests). |
+| `game.py` | Game rules: board, turns, a wrong (or late) answer giving the cell to the other player, victory (and its winning line), draw, running out of time, end of match, no repeated questions on the board; best of N: points per line, cleared lines, how long a played cell lasts and its reset. Language-agnostic. |
+| `settings.py` | What players choose: any combination of operations (+ − × ÷) and times tables (1 to 10), everything by default; the hard mode time limit; and best of N (5). |
+| `clock.py` | Hard mode chess clock: each player's remaining time, running only on their turn and following the match's turns; and the 10-second countdown of each turn (no Flet; the time source can be replaced in tests). |
 | `problems.py` | What can be asked: every problem of each operation (+ and − by difficulty, × and ÷ from the chosen tables). |
-| `questions.py` | How it is asked: picks a problem for a cell (fairly across operations, without repeats on the board) and builds its answer choices. |
+| `questions.py` | How it is asked: picks a problem for a cell (fairly across operations, without repeats on the board) and builds its answer choices; the biggest number of a question. |
+| `cell_timers.py` | Best of N: each played cell's countdown, in real time, until it is open again (no Flet; the time source can be replaced in tests). |
 | `app.py` | Builds the app: detects the language, creates both screens and wires them together. |
 | `i18n/language.py` | Supported languages and mapping of a device code (`pt-BR`) to one of them. |
 | `i18n/text_key.py` | Identifiers of every text shown to the user. |
@@ -436,21 +558,23 @@ Each module in `src/math_tic_tac_toe/` has a single responsibility:
 | `ui/responsive.py` | Reads the screen size and system bars; applies the layout again when they change. |
 | `ui/presenter.py` | Turns the game state into translated display data (no Flet). |
 | `ui/ports.py` | Interfaces the controller expects from the screen, grouped in `Screen` (no Flet). |
-| `ui/controller.py` | Connects screen events to the game rules; starts new matches (with new settings on Play); runs the hard mode clock. |
+| `ui/controller.py` | Connects screen events to the game rules; starts new matches (with new settings on Play); asks before a match in progress is lost; shows a best of 5 point in gold for 1 second; runs the hard mode clock, the best of 5 cell countdowns and each turn's 10 seconds. |
 | `ui/screens.py` | Common frame of both screens (margins, safe area, centering, scrolling). |
 | `ui/navigator.py` | Switches between the settings and the game screens (back button included). |
-| `ui/settings_view.py` | Settings screen: operation buttons, times table buttons, the Play button and the red Hard mode button. |
+| `ui/settings_view.py` | Settings screen: operation buttons, times table buttons, the Play button, and the gold Best of 5 and red Hard mode buttons side by side. |
 | `ui/hard_mode_dialog.py` | Modal of the Hard mode button: time per player chosen on a bar from 0:05 to 5:00 (1:00 by default) and Start. |
 | `ui/timers_view.py` | Hard mode: both players' timers below the title (hidden in normal matches). |
+| `ui/score_view.py` | Best of 5: both players' points below the title, in the timers' place (hidden otherwise). |
 | `ui/ticker.py` | Background loop that drives the hard mode clock a few times per second. |
 | `ui/game_header.py` | Top of the game screen: the title and the ⚙ settings button. |
 | `ui/title_view.py` | A screen title (single line, sized by the layout). |
-| `ui/board_view.py` | Draws the 3x3 board of square buttons across the full width, with the winning line in gold. |
-| `ui/question_dialog.py` | Modal showing the question and 3 answer choices. |
-| `ui/status_view.py` | Shows whose turn it is (in that player's color) and, in red, a wrong answer or a player out of time. |
-| `ui/confirm_dialog.py` | Confirmation modal shown before the restart button throws away a match in progress. |
+| `ui/board_view.py` | Draws the 3x3 board of square buttons across the full width, with the winning line in gold and, in a best of 5, each played cell's seconds, counting down in its mark's color (open cells show none). |
+| `ui/question_dialog.py` | Modal showing the seconds left on the turn, the question and 3 answer choices. |
+| `ui/turn_time_view.py` | The seconds left on the turn (timer icon and number, red at the end), next to whose turn it is and in the question modal. |
+| `ui/status_view.py` | Shows whose turn it is (in that player's color, with the turn's seconds) or the winner (in gold) and, in red, a wrong answer or a player out of time (a best of 5 point in light text). |
+| `ui/confirm_dialog.py` | Confirmation modal shown before the restart or ⚙ button throws away a match in progress; it acts once it has finished closing. |
 | `ui/restart_button.py` | Restart button as wide as the board: "Restart" during a match, "Play again" after it. |
-| `ui/square_button.py`, `ui/styles.py` | Shared square-button look, player, feedback and hard mode colors, fixed dialog sizes. |
+| `ui/square_button.py`, `ui/styles.py` | The design's colors (`docs/design`) and the shared looks: theme, square buttons, pills, dialogs; player, feedback and hard mode colors; fixed dialog sizes. |
 | `ui/events.py` | Adapts Flet's event handlers to plain callbacks (`ignoring_event`). |
 
 Only the `ui/` modules (except `presenter.py` and `ports.py`) import Flet. The

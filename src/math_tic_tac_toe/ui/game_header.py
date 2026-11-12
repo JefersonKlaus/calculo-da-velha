@@ -7,6 +7,7 @@ from collections.abc import Callable
 import flet as ft
 
 from .layout import ScreenLayout
+from .styles import icon_button_style
 from .title_view import TitleView
 
 
@@ -23,6 +24,7 @@ class GameHeader:
         self.settings_button = ft.IconButton(
             icon=ft.Icons.SETTINGS,
             tooltip=settings_tooltip,
+            style=icon_button_style(),
             on_click=lambda _: on_open_settings(),
         )
         # Same size as the button on the other side, so the title stays centered.

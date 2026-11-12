@@ -21,7 +21,14 @@ from ..settings import (
     snap_time_limit,
 )
 from .presenter import clock_text
-from .styles import HARD_MODE_COLOR, hard_mode_button_style
+from .styles import (
+    HARD_MODE_COLOR,
+    MUTED_TEXT_COLOR,
+    RAISED_SURFACE_COLOR,
+    SURFACE_COLOR,
+    dialog_shape,
+    hard_mode_button_style,
+)
 
 StartHandler = Callable[[int], None]
 
@@ -51,12 +58,16 @@ class TimeBar:
             divisions=(MAX_TIME_LIMIT - MIN_TIME_LIMIT) // TIME_LIMIT_STEP,
             value=seconds,
             active_color=HARD_MODE_COLOR,
+            inactive_color=RAISED_SURFACE_COLOR,
             width=BAR_WIDTH,
             on_change=lambda _: self._changed(),
         )
         # The limits, under each end of the bar.
         self.limits = ft.Row(
-            [ft.Text(clock_text(MIN_TIME_LIMIT)), ft.Text(clock_text(MAX_TIME_LIMIT))],
+            [
+                ft.Text(clock_text(MIN_TIME_LIMIT), color=MUTED_TEXT_COLOR),
+                ft.Text(clock_text(MAX_TIME_LIMIT), color=MUTED_TEXT_COLOR),
+            ],
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             width=BAR_WIDTH,
         )
@@ -114,6 +125,8 @@ class HardModeDialog:
         self._page.show_dialog(
             ft.AlertDialog(
                 modal=True,
+                bgcolor=SURFACE_COLOR,
+                shape=dialog_shape(),
                 on_dismiss=lambda _: closed(),
                 title=ft.Text(labels.title),
                 content=ft.Column(

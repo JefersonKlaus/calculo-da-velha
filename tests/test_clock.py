@@ -1,6 +1,6 @@
 import pytest
 
-from math_tic_tac_toe.clock import ChessClock
+from math_tic_tac_toe.clock import ChessClock, Countdown
 from math_tic_tac_toe.game import Game, Mark
 from tests.support import FakeTime, question_factory
 
@@ -77,3 +77,17 @@ def test_follows_the_turn_of_the_match_and_stops_when_it_ends() -> None:
     game.time_out(Mark.O)
     clock.follow(game)
     assert clock.running is None
+
+
+def test_countdown_runs_from_its_creation() -> None:
+    time = FakeTime()
+    time.advance(50)
+    countdown = Countdown(10, now=time)
+    assert countdown.remaining() == 10
+    assert not countdown.expired
+    time.advance(9.5)
+    assert countdown.remaining() == 0.5
+    time.advance(0.5)
+    assert countdown.expired
+    time.advance(5)
+    assert countdown.remaining() == 0  # never negative

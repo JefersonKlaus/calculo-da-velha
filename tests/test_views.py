@@ -20,41 +20,85 @@ from math_tic_tac_toe.ui.layout import (
     SECTION_SPACING,
     SETTINGS_HINT_MAX_LINES,
     TIMER_VERTICAL_PADDING,
+    text_height,
 )
 from math_tic_tac_toe.ui.navigator import ScreenNavigator
 from math_tic_tac_toe.ui.presenter import (
     CellState,
     FeedbackMessage,
     MessagePart,
+    ScoreBoard,
+    ScoreState,
     StatusMessage,
     TimerState,
+    TurnTime,
 )
 from math_tic_tac_toe.ui.question_dialog import QuestionDialog, build_question_dialog
 from math_tic_tac_toe.ui.restart_button import RestartButton
+from math_tic_tac_toe.ui.score_view import ScoreView
 from math_tic_tac_toe.ui.screens import GAME_ROUTE, SETTINGS_ROUTE, screen
 from math_tic_tac_toe.ui.settings_view import SettingsLabels, SettingsView
 from math_tic_tac_toe.ui.status_view import StatusView
 from math_tic_tac_toe.ui.styles import (
+    ACCENT_COLOR,
     ALERT_COLOR,
+    BACKGROUND_COLOR,
+    BEST_OF_COLOR,
+    BEST_OF_TEXT_COLOR,
+    FINISHED_QUESTION_COLOR,
+    GOLD_COLOR,
+    GOOD_NEWS_COLOR,
     HARD_MODE_COLOR,
+    HARD_MODE_TEXT_COLOR,
     HINT_COLOR,
     LOW_TIME_COLOR,
+    MUTED_TEXT_COLOR,
+    ON_ACCENT_COLOR,
+    OUTLINE_COLOR,
     PLAYER_COLORS,
+    RAISED_SURFACE_COLOR,
     RUNNING_TIMER_COLORS,
+    SECTION_LABEL_COLOR,
+    SELECTED_OPTION_COLOR,
+    SURFACE_COLOR,
+    TEXT_COLOR,
+    TILE_RADIUS,
     UNSELECTED_OPTION_COLOR,
+    WINNER_MESSAGE_COLOR,
     WINNING_CELL_COLOR,
     WINNING_MARK_COLOR,
 )
 from math_tic_tac_toe.ui.timers_view import TimersView
 from math_tic_tac_toe.ui.title_view import TitleView
-from tests.support import FakePage, click, layout_for_width, phone_layout, settings_of, slide
+from tests.support import (
+    FakePage,
+    background_of,
+    click,
+    layout_for_width,
+    phone_layout,
+    settings_of,
+    slide,
+)
 
 Option = TypeVar("Option")
 
 
 def assert_square(button: ft.FilledButton) -> None:
+    """As wide as tall, with the design's rounded corners."""
     assert button.width == button.height
-    assert button.style.shape.radius == 0
+    assert button.style.shape.radius == TILE_RADIUS
+
+
+def assert_pill(button: ft.FilledButton) -> None:
+    """Fully rounded ends, like the design's action buttons."""
+    assert isinstance(button.style.shape, ft.StadiumBorder)
+
+
+def assert_navy_card(dialog: ft.AlertDialog) -> None:
+    """Dialogs look like the design's cards: navy, rounded and outlined."""
+    assert dialog.bgcolor == SURFACE_COLOR
+    assert dialog.shape.radius > 0
+    assert dialog.shape.side.color == OUTLINE_COLOR
 
 
 def test_board_is_a_3x3_grid_of_square_buttons() -> None:
@@ -99,6 +143,9 @@ def test_dialog_is_modal_with_one_square_button_per_choice() -> None:
     assert [button.content.value for button in buttons] == ["40", "42", "44"]
     for button in buttons:
         assert_square(button)
+        assert background_of(button) == RAISED_SURFACE_COLOR  # raised on the card
+        assert button.style.color[ft.ControlState.DEFAULT] == TEXT_COLOR
+    assert_navy_card(dialog)
 
     click(buttons[1])
     assert chosen == [42]
@@ -116,7 +163,7 @@ def test_board_paints_the_winning_line_gold_even_when_disabled() -> None:
         assert style.color[ft.ControlState.DISABLED] == WINNING_MARK_COLOR
         assert_square(board.cells[position])
     for position in (0, 1, 3, 5, 7, 8):
-        assert board.cells[position].style.bgcolor is None
+        assert background_of(board.cells[position]) == SURFACE_COLOR
         assert_square(board.cells[position])
 
 
@@ -125,11 +172,13 @@ def test_question_dialog_opens_and_closes_on_the_page() -> None:
     answers: list[int] = []
     question = Question("6 × 7", 42, (40, 42, 44), Operation.MULTIPLICATION, 1)
 
-    QuestionDialog(page.as_page(), "Solve the question", "Cancel").ask(question, answers.append)
+    QuestionDialog(page.as_page(), "Solve the question", "Cancel").ask(
+        question, answers.append, on_cancel=lambda: None
+    )
 
     (dialog,) = page.dialogs
     assert dialog.title.value == "Solve the question"
-    _, choices_row = dialog.content.controls
+    *_, choices_row = dialog.content.controls
     click(choices_row.controls[2])
     assert page.dialogs == []
     assert answers == [44]
@@ -140,13 +189,18 @@ def test_question_dialog_closes_without_answering_when_canceled() -> None:
     answers: list[int] = []
     question = Question("6 × 7", 42, (40, 42, 44), Operation.MULTIPLICATION, 1)
 
-    QuestionDialog(page.as_page(), "Solve the question", "Cancel").ask(question, answers.append)
+    canceled: list[None] = []
+
+    QuestionDialog(page.as_page(), "Solve the question", "Cancel").ask(
+        question, answers.append, on_cancel=lambda: canceled.append(None)
+    )
 
     (dialog,) = page.dialogs
     (cancel,) = dialog.actions
     click(cancel)
     assert page.dialogs == []
     assert answers == []
+    assert canceled == [None]  # the game knows: the time to answer stops
 
 
 def test_question_dialog_can_be_closed_by_the_game() -> None:
@@ -156,7 +210,7 @@ def test_question_dialog_can_be_closed_by_the_game() -> None:
     prompt = QuestionDialog(page.as_page(), "Solve the question", "Cancel")
     other = ft.AlertDialog()
 
-    prompt.ask(question, answers.append)
+    prompt.ask(question, answers.append, on_cancel=lambda: None)
     prompt.close()
     assert page.dialogs == []
 
@@ -184,6 +238,9 @@ def test_confirm_dialog_is_modal_with_cancel_and_a_filled_confirm_button() -> No
     assert (cancel.content, confirm.content) == ("Cancel", "Restart")
     assert isinstance(cancel, ft.TextButton)
     assert isinstance(confirm, ft.FilledButton)
+    assert confirm.style.bgcolor == ACCENT_COLOR  # the pink pill acts
+    assert_pill(confirm)
+    assert_navy_card(dialog)
 
     click(cancel)
     click(confirm)
@@ -214,12 +271,16 @@ def test_confirm_dialog_confirm_closes_it_and_confirms() -> None:
     _, confirm = dialog.actions
     click(confirm)
     assert page.dialogs == []
-    assert confirmed == [0]  # closed first, then confirmed
+    assert confirmed == []  # it may switch screens: waits until the dialog is gone
+    click(confirm)  # a second tap while it is closing
+    page.finish_closing_dialogs()
+    assert confirmed == [0]  # once, after it finished closing
 
 
 def test_status_is_bold_in_the_color_of_the_player() -> None:
     view = StatusView(phone_layout())
-    status, _ = view.control.controls
+    status_line, _ = view.control.controls
+    status, _ = status_line.controls
     assert status.weight == ft.FontWeight.BOLD
 
     view.show_status(StatusMessage("X's turn", Mark.X))
@@ -228,6 +289,14 @@ def test_status_is_bold_in_the_color_of_the_player() -> None:
     assert status.color == PLAYER_COLORS[Mark.O]
     view.show_status(StatusMessage("Game over: it's a draw!", None))
     assert status.color is None
+
+
+def test_the_winner_message_is_gold() -> None:
+    view = StatusView(phone_layout())
+    status_line, _ = view.control.controls
+    status, _ = status_line.controls
+    view.show_status(StatusMessage("Game over: O wins!", Mark.O, won=True))
+    assert status.color == WINNER_MESSAGE_COLOR == GOLD_COLOR  # like the winning cells
 
 
 def test_feedback_is_bold_and_red() -> None:
@@ -254,7 +323,7 @@ def test_feedback_shows_a_player_symbol_in_that_player_color(player: Mark) -> No
     view.show_feedback(message)
 
     assert colored_spans(feedback) == [
-        (player.value, PLAYER_COLORS[player]),  # X blue / O purple
+        (player.value, PLAYER_COLORS[player]),  # X blue / O pink
         (" ran out of time.", ALERT_COLOR),  # the rest stays red
     ]
     # The pieces share the line's look: same size, weight and line height.
@@ -266,8 +335,28 @@ def colored_spans(text: ft.Control) -> list[tuple[str | None, object]]:
     return [(span.text, span.style.color) for span in text.spans or []]
 
 
-def test_players_are_blue_and_purple() -> None:
-    assert PLAYER_COLORS == {Mark.X: "#1565C0", Mark.O: "#6A1B9A"}
+def test_players_are_blue_and_pink_like_the_design() -> None:
+    assert PLAYER_COLORS == {Mark.X: "#65B5FF", Mark.O: "#FF5D98"}
+
+
+def test_board_cells_are_navy_tiles_outlined_in_the_player_color_once_played() -> None:
+    board = BoardView(on_select=lambda _: None, layout=phone_layout())
+    states = [CellState(f"c{i}", True) for i in range(9)]
+    states[0] = CellState("X", False, Mark.X)
+    states[1] = CellState("O", False, Mark.O)
+    states[2] = CellState("c2", False)  # the match is over: it can no longer be played
+    board.render(states)
+
+    for cell in board.cells:
+        assert background_of(cell) == SURFACE_COLOR
+        assert cell.style.bgcolor[ft.ControlState.DISABLED] == SURFACE_COLOR  # never grey
+    assert board.cells[0].style.side.color == PLAYER_COLORS[Mark.X]
+    assert board.cells[1].style.side.color == PLAYER_COLORS[Mark.O]
+    open_cell = board.cells[3].style
+    assert open_cell.side.color == OUTLINE_COLOR
+    assert open_cell.color[ft.ControlState.DEFAULT] == TEXT_COLOR
+    # Questions left on the board once the match is over are muted.
+    assert board.cells[2].style.color[ft.ControlState.DISABLED] == FINISHED_QUESTION_COLOR
 
 
 def test_marks_use_the_player_color_and_dark_gold_when_winning() -> None:
@@ -289,7 +378,12 @@ def test_restart_button_is_always_visible_shows_its_label_and_reports_taps() -> 
     taps: list[None] = []
     button = RestartButton(on_restart=lambda: taps.append(None), layout=phone_layout())
     assert button.control.visible is True
-    assert button.control.style.shape.radius == 0
+    # A navy pill, like the design's "Restart game": it does not compete
+    # with the board.
+    assert_pill(button.control)
+    assert button.control.style.bgcolor == SURFACE_COLOR
+    assert button.control.style.side.color == OUTLINE_COLOR
+    assert button.control.style.color == TEXT_COLOR
 
     button.set_label("Restart")
     assert button.control.content.value == "Restart"
@@ -341,7 +435,8 @@ def test_restart_button_is_as_wide_as_the_board() -> None:
 def test_title_and_messages_grow_with_the_layout() -> None:
     title = TitleView("Math Tic-Tac-Toe", phone_layout())
     status = StatusView(phone_layout())
-    status_text, feedback_text = status.control.controls
+    status_line, feedback_text = status.control.controls
+    status_text, _ = status_line.controls
     assert title.control.value == "Math Tic-Tac-Toe"
     assert title.control.weight == ft.FontWeight.BOLD
     assert title.control.size == phone_layout().title_font_size
@@ -351,6 +446,8 @@ def test_title_and_messages_grow_with_the_layout() -> None:
     status.apply_layout(tablet)
     assert title.control.size == tablet.title_font_size
     assert status_text.size == tablet.status_font_size
+    assert status.turn_time.seconds.size == tablet.status_font_size
+    assert status.turn_time.icon.size == tablet.status_font_size
     assert feedback_text.size == tablet.feedback_font_size
 
 
@@ -358,27 +455,32 @@ def test_texts_use_the_fixed_line_height_the_layout_relies_on() -> None:
     title = TitleView("Math Tic-Tac-Toe", phone_layout())
     status = StatusView(phone_layout())
     assert status.control.spacing == MESSAGE_SPACING
-    for text in (title.control, *status.control.controls):
+    status_line, feedback = status.control.controls
+    status_text, _ = status_line.controls
+    for text in (title.control, status_text, status.turn_time.seconds, feedback):
         assert text.style.height == LINE_HEIGHT
 
 
 def make_settings_view(
     settings: GameSettings = DEFAULT_SETTINGS,
     on_hard_mode: Callable[[GameSettings], None] = lambda _: None,
+    on_best_of: Callable[[GameSettings], None] = lambda _: None,
 ) -> tuple[SettingsView, list[GameSettings], list[None]]:
     played: list[GameSettings] = []
     refreshes: list[None] = []
     view = SettingsView(
         SettingsLabels(
             "Settings",
-            "In blue: selected options. Tap an option to select or unselect it.",
+            "In pink: selected options. Tap an option to select or unselect it.",
             "Operation",
             "Times table",
             "Play",
+            "Best of 5",
             "Hard mode",
         ),
         settings,
         on_play=played.append,
+        on_best_of=on_best_of,
         on_hard_mode=on_hard_mode,
         refresh=lambda: refreshes.append(None),
         layout=phone_layout(),
@@ -387,7 +489,9 @@ def make_settings_view(
 
 
 def selected_options(buttons: Mapping[Option, ft.FilledButton]) -> list[Option]:
-    return [key for key, button in buttons.items() if button.style.bgcolor is None]
+    return [
+        key for key, button in buttons.items() if background_of(button) == SELECTED_OPTION_COLOR
+    ]
 
 
 def test_settings_view_starts_with_everything_selected() -> None:
@@ -399,12 +503,12 @@ def test_settings_view_starts_with_everything_selected() -> None:
     assert view.table_label.value == "Times table"
 
 
-def test_settings_view_explains_the_blue_options_below_the_title() -> None:
+def test_settings_view_explains_the_pink_options_below_the_title() -> None:
     view, _, _ = make_settings_view()
     title, hint, operation_label, *_ = view.control.controls
     assert title.value == "Settings"
     assert hint is view.hint
-    assert hint.value == "In blue: selected options. Tap an option to select or unselect it."
+    assert hint.value == "In pink: selected options. Tap an option to select or unselect it."
     assert operation_label is view.operation_label
     # Small, soft and centered: it explains, it does not compete with the labels.
     assert hint.color == HINT_COLOR
@@ -419,8 +523,14 @@ def test_settings_view_shows_the_current_choice() -> None:
     view, _, _ = make_settings_view(chosen)
     assert selected_options(view.operation_buttons) == [Operation.ADDITION, Operation.DIVISION]
     assert selected_options(view.table_buttons) == [5, 7]
-    unselected = view.operation_buttons[Operation.SUBTRACTION].style
-    assert unselected.bgcolor == UNSELECTED_OPTION_COLOR
+    # Selected: pink with white text. Unselected: navy, outlined, light text.
+    selected = view.operation_buttons[Operation.ADDITION]
+    assert background_of(selected) == SELECTED_OPTION_COLOR == ACCENT_COLOR
+    assert selected.style.color[ft.ControlState.DEFAULT] == ON_ACCENT_COLOR
+    unselected = view.operation_buttons[Operation.SUBTRACTION]
+    assert background_of(unselected) == UNSELECTED_OPTION_COLOR == SURFACE_COLOR
+    assert unselected.style.side.color == OUTLINE_COLOR
+    assert unselected.style.color[ft.ControlState.DEFAULT] == TEXT_COLOR
 
 
 def test_tapping_a_selected_option_unselects_only_that_one() -> None:
@@ -490,10 +600,18 @@ def test_settings_buttons_are_square_and_follow_the_layout() -> None:
         assert label.size == tablet.status_font_size
         assert label.style.height == LINE_HEIGHT
         assert label.max_lines == 1
-    for button in (view.play_button, view.hard_mode_button):
-        assert button.width == tablet.board_width
+    for label in (view.operation_label, view.table_label):
+        assert label.color == SECTION_LABEL_COLOR
+    assert view.play_button.width == tablet.board_width
+    # The mode buttons share a row as wide (and as tall) as the Play button.
+    for button in (view.play_button, view.best_of_button, view.hard_mode_button):
         assert button.height == tablet.restart_height
         assert button.content.size == tablet.restart_font_size
+    for button in (view.best_of_button, view.hard_mode_button):
+        assert button.width == tablet.mode_button_width
+        assert button.style.icon_size == tablet.restart_font_size
+        assert button.style.padding.left == tablet.mode_button_padding
+    assert 2 * tablet.mode_button_width + tablet.cell_spacing <= tablet.board_width
 
 
 def test_game_header_has_a_settings_button_and_keeps_the_title_centered() -> None:
@@ -505,6 +623,11 @@ def test_game_header_has_a_settings_button_and_keeps_the_title_centered() -> Non
     assert button.tooltip == "Settings"
     size = phone_layout().header_height
     assert (button.width, button.height) == (size, size)
+    # A round navy button outlined in a lighter navy, like the design's.
+    assert isinstance(button.style.shape, ft.CircleBorder)
+    assert button.style.bgcolor == SURFACE_COLOR
+    assert button.style.side.color == OUTLINE_COLOR
+    assert button.style.icon_color == TEXT_COLOR
     assert (balance.width, balance.height) == (size, size)
 
     assert header.control.width == phone_layout().board_width
@@ -554,6 +677,7 @@ def test_screens_share_the_same_frame() -> None:
     assert isinstance(safe_area, ft.SafeArea)
     assert safe_area.content.controls == [content]
     assert safe_area.content.spacing == SECTION_SPACING
+    assert view.bgcolor == BACKGROUND_COLOR  # the design's dark navy
 
 
 # ---- hard mode ---------------------------------------------------------------
@@ -562,13 +686,20 @@ def test_screens_share_the_same_frame() -> None:
 def test_settings_view_has_a_red_hard_mode_button_below_play() -> None:
     chosen: list[GameSettings] = []
     view, played, _ = make_settings_view(on_hard_mode=chosen.append)
-    *_, play, hard_mode = view.control.controls
+    *_, play, modes = view.control.controls
+    _, hard_mode = modes.controls
     assert play is view.play_button
     assert hard_mode is view.hard_mode_button
     assert hard_mode.content.value == "Hard mode"
     assert hard_mode.icon == ft.Icons.TIMER
-    assert hard_mode.style.bgcolor == HARD_MODE_COLOR
-    assert hard_mode.style.shape.radius == 0  # square corners, like Play
+    # Play is the pink pill; hard mode a red pill with white text.
+    assert play.style.bgcolor == ACCENT_COLOR
+    assert play.style.color == ON_ACCENT_COLOR
+    assert_pill(play)
+    assert hard_mode.style.bgcolor == HARD_MODE_COLOR == "#DC3545"
+    assert hard_mode.style.color == HARD_MODE_TEXT_COLOR == "#FFFFFF"
+    assert hard_mode.style.icon_color == HARD_MODE_TEXT_COLOR
+    assert_pill(hard_mode)
 
     click(view.table_buttons[7])
     click(hard_mode)
@@ -609,7 +740,10 @@ def test_hard_mode_dialog_offers_one_minute_by_default() -> None:
     assert harness.time.value == "1:00"
     assert harness.bar.value == 60
     assert (harness.cancel.content, harness.start.content) == ("Cancel", "Start")
+    # Red with white text, like the Hard mode button.
     assert harness.start.style.bgcolor == HARD_MODE_COLOR
+    assert harness.start.style.color == HARD_MODE_TEXT_COLOR
+    assert_navy_card(harness.dialog)
 
 
 def test_hard_mode_starts_only_once_the_dialog_has_finished_closing() -> None:
@@ -719,3 +853,166 @@ def test_timers_follow_the_layout() -> None:
         assert timer.content.style.height == LINE_HEIGHT
         assert timer.padding.top == timer.padding.bottom == TIMER_VERTICAL_PADDING
     assert view.control.spacing == tablet.cell_spacing
+
+
+# ---- best of 5 -------------------------------------------------------------------
+
+
+def test_settings_view_has_a_gold_best_of_5_button_next_to_hard_mode() -> None:
+    chosen: list[GameSettings] = []
+    view, played, _ = make_settings_view(on_best_of=chosen.append)
+    *_, modes = view.control.controls
+    best_of, hard_mode = modes.controls
+    assert best_of is view.best_of_button
+    assert hard_mode is view.hard_mode_button
+    assert best_of.content.value == "Best of 5"
+    assert best_of.icon == ft.Icons.EMOJI_EVENTS
+    assert best_of.style.bgcolor == BEST_OF_COLOR == GOLD_COLOR
+    assert best_of.style.color == BEST_OF_TEXT_COLOR
+    assert_pill(best_of)
+    # Side by side, together as wide as Play.
+    layout = phone_layout()
+    assert modes.spacing == layout.cell_spacing
+    assert best_of.width == hard_mode.width == layout.mode_button_width
+
+    click(view.operation_buttons[Operation.DIVISION])
+    click(best_of)
+    assert chosen == [settings_of([o for o in OPERATIONS if o is not Operation.DIVISION])]
+    assert played == []
+
+
+def test_a_played_cell_shows_its_countdown_very_small_below_the_mark() -> None:
+    board = BoardView(on_select=lambda _: None, layout=phone_layout())
+    states = [CellState(f"c{i}", True) for i in range(9)]
+    states[0] = CellState("X", False, Mark.X, seconds=32)
+    board.render(states)
+
+    mark, countdown = board.cells[0].content.controls
+    assert mark.value == "X"
+    assert mark.color == PLAYER_COLORS[Mark.X]
+    assert countdown.value == "32"
+    assert countdown.color == PLAYER_COLORS[Mark.X]  # the color of its symbol
+    layout = phone_layout()
+    assert countdown.size == layout.cell_timer_font_size
+    assert countdown.size < layout.prompt_font_size < mark.size  # very small
+    # Other cells keep a single label.
+    assert board.cells[1].content.value == "c1"
+
+    tablet = layout_for_width(800)
+    board.apply_layout(tablet)
+    _, countdown = board.cells[0].content.controls
+    assert countdown.size == tablet.cell_timer_font_size
+
+
+def test_the_score_is_hidden_outside_a_best_of() -> None:
+    view = ScoreView(phone_layout())
+    assert view.control.visible is False
+    view.show_score(None)
+    assert view.control.visible is False
+
+
+def test_the_score_shows_each_player_points_in_their_color() -> None:
+    view = ScoreView(phone_layout())
+    view.show_score(ScoreBoard((ScoreState(Mark.X, 2), ScoreState(Mark.O, 1)), "First to 3 wins"))
+    assert view.control.visible is True
+    x, goal, o = view.control.controls
+    assert x.content.value == "X  2"
+    assert o.content.value == "O  1"
+    assert x.content.color == PLAYER_COLORS[Mark.X]
+    assert o.content.color == PLAYER_COLORS[Mark.O]
+    assert goal.value == "First to 3 wins"
+    assert goal.overflow == ft.TextOverflow.ELLIPSIS  # never wider than the board
+
+
+def test_the_score_takes_the_place_and_the_height_of_the_timers() -> None:
+    layout = phone_layout()
+    view = ScoreView(layout)
+    assert view.control.width == layout.board_width
+    for chip in view.scores.values():
+        text = chip.content
+        assert text.size == layout.status_font_size
+        assert text.style.height == LINE_HEIGHT
+        assert text.max_lines == 1
+        height = text_height(text.size) + chip.padding.top + chip.padding.bottom
+        assert height == layout.timers_height
+    assert text_height(layout.feedback_font_size) <= layout.timers_height
+    assert view.goal.size == layout.feedback_font_size
+
+    tablet = layout_for_width(800)
+    view.apply_layout(tablet)
+    assert view.control.width == tablet.board_width
+    assert view.scores[Mark.X].content.size == tablet.status_font_size
+
+
+def test_a_point_message_is_light_with_the_player_in_color() -> None:
+    view = StatusView(phone_layout())
+    _, feedback = view.control.controls
+    view.show_feedback(
+        FeedbackMessage(
+            (MessagePart("Point for "), MessagePart("X", Mark.X), MessagePart("!")),
+            alert=False,
+        )
+    )
+    assert colored_spans(feedback) == [
+        ("Point for ", GOOD_NEWS_COLOR),
+        ("X", PLAYER_COLORS[Mark.X]),
+        ("!", GOOD_NEWS_COLOR),
+    ]
+
+
+# ---- 10 seconds to answer --------------------------------------------------------
+
+
+def test_question_dialog_shows_the_seconds_left_above_the_question() -> None:
+    page = FakePage()
+    question = Question("6 × 7", 42, (40, 42, 44), Operation.MULTIPLICATION, 1)
+    prompt = QuestionDialog(page.as_page(), "Solve the question", "Cancel")
+    prompt.ask(question, lambda _: None, on_cancel=lambda: None)
+    prompt.show_time(TurnTime(10, low=False))
+
+    (dialog,) = page.dialogs
+    answer_time, question_text, _ = dialog.content.controls
+    icon, seconds = answer_time.controls
+    assert question_text.value == "6 × 7"
+    assert icon.icon == ft.Icons.TIMER
+    assert seconds.value == "10"
+    assert seconds.color == icon.color == MUTED_TEXT_COLOR
+
+    prompt.show_time(TurnTime(3, low=True))  # the last seconds turn red
+    assert seconds.value == "3"
+    assert seconds.color == icon.color == ALERT_COLOR
+
+
+def test_only_cells_with_a_symbol_show_seconds() -> None:
+    board = BoardView(on_select=lambda _: None, layout=phone_layout())
+    states = [CellState(f"c{i}", True) for i in range(9)]
+    states[1] = CellState("O", False, Mark.O, seconds=12)
+    board.render(states)
+    assert board.cells[0].content.value == "c0"  # an open cell: just its question
+    mark, seconds = board.cells[1].content.controls
+    assert mark.value == "O"
+    assert seconds.value == "12"
+    assert seconds.color == PLAYER_COLORS[Mark.O]  # in its symbol's color
+
+
+# ---- 10 seconds per turn -----------------------------------------------------------
+
+
+def test_the_status_shows_the_seconds_left_on_the_turn() -> None:
+    view = StatusView(phone_layout())
+    status_line, _ = view.control.controls
+    _, turn_time = status_line.controls
+    assert turn_time is view.turn_time.control
+    assert turn_time.visible is False  # until a turn runs
+
+    view.show_turn_time(TurnTime(10, low=False))
+    assert turn_time.visible is True
+    assert view.turn_time.seconds.value == "10"
+    assert view.turn_time.seconds.color == MUTED_TEXT_COLOR
+    assert view.turn_time.icon.icon == ft.Icons.TIMER
+
+    view.show_turn_time(TurnTime(2, low=True))
+    assert view.turn_time.seconds.color == view.turn_time.icon.color == ALERT_COLOR
+
+    view.show_turn_time(None)  # no turn running (the match is over)
+    assert turn_time.visible is False

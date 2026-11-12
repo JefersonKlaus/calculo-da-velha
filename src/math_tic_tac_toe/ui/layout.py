@@ -10,9 +10,10 @@ Every font grows with the cells, so the title and messages stay in proportion
 with the board. Texts use a fixed line height so their height is known.
 
 The settings screen reuses the board width: a hint of up to 2 lines below the
-title, 4 operation buttons in one row and the times tables in rows of 5. It is
-always shorter than the game screen, so whatever fits the game screen also fits
-the settings screen.
+title, 4 operation buttons in one row, the times tables in rows of 5, the Play
+button, and the two mode buttons (Best of 5 and Hard mode) side by side in one
+row. It is always shorter than the game screen, so whatever fits the game
+screen also fits the settings screen.
 """
 
 from __future__ import annotations
@@ -49,6 +50,11 @@ STATUS_FONT_RATIO = 0.2
 FEEDBACK_FONT_RATIO = 0.165
 SETTINGS_HINT_FONT_RATIO = 0.13
 SETTINGS_HINT_MAX_LINES = 2  # the space for both lines is always reserved
+# Best of N: the small countdown below the mark of a played cell.
+CELL_TIMER_FONT_RATIO = 0.13
+# The mode buttons share a row, so their icon and inner margins grow with the
+# cells too: the longest label ("Modo difícil") then fits at every size.
+MODE_BUTTON_PADDING_RATIO = 0.06
 
 
 @dataclass(frozen=True)
@@ -113,6 +119,20 @@ class ScreenLayout:
     @property
     def table_font_size(self) -> int:
         return round(self.table_button_size * 0.4)
+
+    @property
+    def cell_timer_font_size(self) -> int:
+        return round(self.cell_size * CELL_TIMER_FONT_RATIO)
+
+    @property
+    def mode_button_width(self) -> int:
+        """Two mode buttons side by side, as wide as the board together."""
+        return _buttons_per_row_size(self.board_width, 2, self.cell_spacing)
+
+    @property
+    def mode_button_padding(self) -> int:
+        """Inner margin on each side of a mode button's icon and label."""
+        return round(self.cell_size * MODE_BUTTON_PADDING_RATIO)
 
     @property
     def content_height(self) -> int:

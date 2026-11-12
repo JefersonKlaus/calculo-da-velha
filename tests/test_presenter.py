@@ -1,15 +1,20 @@
 import pytest
 
-from math_tic_tac_toe.clock import ChessClock
-from math_tic_tac_toe.game import Game, Mark
+from math_tic_tac_toe.cell_timers import CellTimers
+from math_tic_tac_toe.clock import ChessClock, Countdown
+from math_tic_tac_toe.game import Game, Mark, MoveResult
 from math_tic_tac_toe.i18n import Language, translator_for
 from math_tic_tac_toe.ui.presenter import (
     CellState,
     FeedbackMessage,
     GamePresenter,
     MessagePart,
+    ScoreBoard,
+    ScoredLine,
+    ScoreState,
     StatusMessage,
     TimerState,
+    TurnTime,
     clock_text,
 )
 from tests.support import FakeTime, english_presenter, question_factory
@@ -75,10 +80,19 @@ def test_status_tells_whose_turn_it_is() -> None:
     assert presenter.status(game) == StatusMessage("O's turn", Mark.O)
 
 
+def test_only_a_win_is_celebrated() -> None:
+    presenter = english_presenter()
+    assert presenter.status(won_game()).won
+    assert not presenter.status(drawn_game()).won
+    assert not presenter.status(Game(question_factory)).won
+
+
 def test_status_names_the_winner_or_the_draw() -> None:
     presenter = english_presenter()
-    assert presenter.status(won_game()) == StatusMessage("Game over: X wins!", Mark.X)
-    assert presenter.status(won_by_o_game()) == StatusMessage("Game over: O wins!", Mark.O)
+    assert presenter.status(won_game()) == StatusMessage("Game over: X wins!", Mark.X, won=True)
+    assert presenter.status(won_by_o_game()) == StatusMessage(
+        "Game over: O wins!", Mark.O, won=True
+    )
     assert presenter.status(drawn_game()) == StatusMessage("Game over: it's a draw!", None)
 
 
@@ -95,10 +109,10 @@ def test_feedback_only_speaks_up_for_a_wrong_answer() -> None:
     assert presenter.feedback(game.answer(0, 999)) == FeedbackMessage(
         (MessagePart("Wrong answer."),)
     )
-    assert presenter.feedback(game.answer(0, 1)) is None  # right: nothing to say
+    assert presenter.feedback(game.answer(1, 1)) is None  # right: nothing to say
 
     portuguese = GamePresenter(translator_for(Language.PORTUGUESE))
-    wrong = portuguese.feedback(game.answer(1, 999))
+    wrong = portuguese.feedback(game.answer(2, 999))
     assert wrong is not None
     assert wrong.text == "Resposta incorreta."
 
@@ -145,7 +159,7 @@ def test_timers_show_both_players_x_first() -> None:
 def test_running_out_of_time_reads_as_a_normal_win() -> None:
     game = Game(question_factory)
     game.time_out(Mark.X)
-    assert english_presenter().status(game) == StatusMessage("Game over: O wins!", Mark.O)
+    assert english_presenter().status(game) == StatusMessage("Game over: O wins!", Mark.O, won=True)
     portuguese = GamePresenter(translator_for(Language.PORTUGUESE))
     assert portuguese.status(game).text == "Fim de jogo: O venceu!"
 
@@ -169,3 +183,160 @@ def test_all_cells_of_the_winner_turn_gold_when_the_time_runs_out() -> None:
     cells = english_presenter().cells(game)
 
     assert [i for i, cell in enumerate(cells) if cell.highlighted] == [3, 4]
+
+
+# ---- best of 5 -------------------------------------------------------------------
+
+
+def test_a_single_game_has_no_score_board() -> None:
+    assert english_presenter().score_board(Game(question_factory)) is None
+
+
+def test_score_board_of_a_best_of_five() -> None:
+    game = Game(question_factory, best_of=5)
+    for position in [0, 3, 1, 4, 2]:  # X completes a line
+        game.answer(position, 1)
+    assert english_presenter().score_board(game) == ScoreBoard(
+        (ScoreState(Mark.X, 1), ScoreState(Mark.O, 0)), "First to 3 wins"
+    )
+    portuguese = GamePresenter(translator_for(Language.PORTUGUESE)).score_board(game)
+    assert portuguese is not None
+    assert portuguese.goal == "Vence quem fizer 3"
+
+
+def test_played_cells_show_whole_seconds_rounded_up() -> None:
+    time = FakeTime()
+    game = Game(question_factory, best_of=5)
+    timers = CellTimers(now=time)
+    game.answer(4, 1)  # the center: "question 3" lasts 3 seconds
+    timers.follow(game)
+    presenter = english_presenter()
+
+    assert presenter.cells(game, timers)[4].seconds == 3
+    time.advance(0.2)
+    assert presenter.cells(game, timers)[4].seconds == 3  # 2.8 shows 3
+    time.advance(1)
+    assert presenter.cells(game, timers)[4].seconds == 2
+    assert presenter.cells(game)[4].seconds is None  # no countdowns at all
+
+
+def test_open_cells_of_a_best_of_show_no_seconds() -> None:
+    time = FakeTime()
+    game = Game(question_factory, best_of=5)
+    timers = CellTimers(now=time)
+    game.answer(4, 1)
+    timers.follow(game)
+    cells = english_presenter().cells(game, timers)
+    assert [cell.seconds for cell in cells] == [None] * 4 + [3] + [None] * 4
+
+
+def test_no_seconds_in_a_single_game_or_once_a_best_of_is_over() -> None:
+    assert all(cell.seconds is None for cell in english_presenter().cells(won_game()))
+    assert all(cell.seconds is None for cell in english_presenter().cells(Game(question_factory)))
+    game = Game(question_factory, best_of=1)  # the first line wins
+    for position in [0, 3, 1, 4, 2]:
+        game.answer(position, 1)
+    assert game.is_over
+    assert all(cell.seconds is None for cell in english_presenter().cells(game))
+
+
+def test_time_up_without_a_cell() -> None:
+    assert english_presenter().time_up() == FeedbackMessage((MessagePart("Time's up!"),))
+
+
+@pytest.mark.parametrize(
+    ("language", "text"),
+    [(Language.ENGLISH, "Point for O!"), (Language.PORTUGUESE, "Ponto para O!")],
+)
+def test_a_point_is_good_news_with_the_player_in_color(language: Language, text: str) -> None:
+    message = GamePresenter(translator_for(language)).feedback(
+        MoveResult(correct=True, point_for=Mark.O, points=1)
+    )
+    assert message is not None
+    assert message.text == text
+    assert not message.alert  # not red
+    assert [part.player for part in message.parts if part.player] == [Mark.O]
+
+
+# ---- 10 seconds to answer --------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("language", "text"),
+    [(Language.ENGLISH, "Time's up!"), (Language.PORTUGUESE, "Tempo esgotado!")],
+)
+def test_not_answering_in_time_says_time_is_up_in_red(language: Language, text: str) -> None:
+    message = GamePresenter(translator_for(language)).feedback(
+        MoveResult(correct=False), missed=True
+    )
+    assert message == FeedbackMessage((MessagePart(text),))
+    assert message.alert
+
+
+def test_a_wrong_answer_that_scores_for_the_other_player_says_both_in_red() -> None:
+    presenter = english_presenter()
+    message = presenter.feedback(MoveResult(correct=False, point_for=Mark.O, points=1))
+    assert message == FeedbackMessage(
+        (
+            MessagePart("Wrong answer."),
+            MessagePart(" "),
+            MessagePart("Point for "),
+            MessagePart("O", Mark.O),
+            MessagePart("!"),
+        )
+    )
+    assert message.alert  # bad news for the player who answered
+    missed = presenter.feedback(MoveResult(correct=False, point_for=Mark.O, points=1), missed=True)
+    assert missed is not None
+    assert missed.text == "Time's up! Point for O!"
+
+
+def test_answer_time_is_whole_seconds_rounded_up_and_low_at_the_end() -> None:
+    time = FakeTime()
+    countdown = Countdown(10, now=time)
+    presenter = english_presenter()
+    assert presenter.turn_time(countdown) == TurnTime(10, low=False)
+    time.advance(0.1)
+    assert presenter.turn_time(countdown) == TurnTime(10, low=False)
+    time.advance(6.9)
+    assert presenter.turn_time(countdown) == TurnTime(3, low=True)
+    time.advance(2.5)
+    assert presenter.turn_time(countdown) == TurnTime(1, low=True)
+
+
+def test_a_line_that_scored_shows_in_gold_while_the_board_waits() -> None:
+    game = Game(question_factory, best_of=5)
+    for position in [0, 3, 1, 4, 2]:  # X's top row scores and is cleared
+        game.answer(position, 1)
+    cells = english_presenter().cells(game, scored=ScoredLine((0, 1, 2), Mark.X))
+
+    for position in (0, 1, 2):
+        assert cells[position] == CellState("X", False, Mark.X, highlighted=True)
+    assert cells[3] == CellState("O", False, Mark.O)
+    assert cells[5].label == "question 2"
+    assert not any(cell.enabled for cell in cells)  # nothing can be played yet
+
+    after = english_presenter().cells(game)  # once it disappears
+    assert [cell.label for cell in after[:3]] == ["question 1", "question 2", "question 1"]
+    assert after[0].enabled
+
+
+@pytest.mark.parametrize(
+    ("language", "text"),
+    [(Language.ENGLISH, "2 points for X!"), (Language.PORTUGUESE, "2 pontos para X!")],
+)
+def test_two_lines_at_once_say_two_points(language: Language, text: str) -> None:
+    message = GamePresenter(translator_for(language)).feedback(
+        MoveResult(correct=True, point_for=Mark.X, points=2)
+    )
+    assert message is not None
+    assert message.text == text
+    assert [part.player for part in message.parts if part.player] == [Mark.X]
+
+
+def test_every_line_of_a_winning_move_is_highlighted() -> None:
+    game = Game(question_factory)
+    for position in [1, 4, 2, 5, 3, 7, 6, 8, 0]:  # X's last move completes two lines
+        game.answer(position, 1)
+    cells = english_presenter().cells(game)
+    assert [p for p, cell in enumerate(cells) if cell.highlighted] == [0, 1, 2, 3, 6]

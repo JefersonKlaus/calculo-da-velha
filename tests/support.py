@@ -31,6 +31,14 @@ def click(control: ft.Control) -> None:
     handler(None)
 
 
+def background_of(button: ft.Control) -> object:
+    """The background color of a tile button (cell, option or choice) at rest.
+    Their styles set it for every state, disabled included."""
+    style = getattr(button, "style", None)
+    assert style is not None, f"{type(button).__name__} has no style"
+    return style.bgcolor[ft.ControlState.DEFAULT]
+
+
 def slide(bar: ft.Slider, value: float) -> None:
     """Moves ``bar`` to ``value`` as Flet does: updates the value, then runs
     the change handler."""
@@ -75,7 +83,7 @@ def settings_content_height(layout: ScreenLayout) -> int:
         + SECTION_SPACING
         + layout.restart_height  # the play button has the restart button's size
         + SECTION_SPACING
-        + layout.restart_height  # the hard mode button, the same size
+        + layout.restart_height  # the row of mode buttons (Best of 5, Hard mode)
     )
 
 

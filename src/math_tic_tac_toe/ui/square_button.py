@@ -8,12 +8,20 @@ from .events import ClickHandler
 from .styles import square_button_style
 
 
-def square_button(label: str, size: int, font_size: int, on_click: ClickHandler) -> ft.FilledButton:
+def square_button(
+    label: str,
+    size: int,
+    font_size: int,
+    on_click: ClickHandler,
+    style: ft.ButtonStyle | None = None,
+) -> ft.FilledButton:
+    """Square button with rounded corners; a raised navy tile unless another
+    ``style`` is given (board cells, settings options)."""
     return ft.FilledButton(
         content=square_label(label, font_size),
         width=size,
         height=size,
-        style=square_button_style(),
+        style=style or square_button_style(),
         on_click=on_click,
     )
 

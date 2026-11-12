@@ -3,6 +3,7 @@ from collections.abc import Collection
 import pytest
 
 from math_tic_tac_toe.settings import (
+    BEST_OF_FIVE,
     DEFAULT_SETTINGS,
     MAX_TIME_LIMIT,
     MIN_TIME_LIMIT,
@@ -10,6 +11,7 @@ from math_tic_tac_toe.settings import (
     TABLES,
     GameSettings,
     Operation,
+    points_to_win,
     snap_time_limit,
     toggle,
 )
@@ -135,3 +137,34 @@ def test_snap_time_limit_turns_the_bar_position_into_a_valid_time(
 ) -> None:
     assert snap_time_limit(value) == seconds
     assert DEFAULT_SETTINGS.with_time_limit(seconds).time_limit == seconds
+
+
+def test_a_single_game_is_the_default() -> None:
+    assert DEFAULT_SETTINGS.best_of is None
+    assert DEFAULT_SETTINGS.points_to_win == 1
+
+
+def test_best_of_five_is_won_with_3_points_and_keeps_the_other_choices() -> None:
+    chosen = settings_of([Operation.ADDITION], [3])
+    best_of = chosen.with_best_of(BEST_OF_FIVE)
+    assert best_of.best_of == 5
+    assert best_of.points_to_win == 3
+    assert best_of.operations == chosen.operations
+    assert best_of.tables == chosen.tables
+    assert best_of.with_best_of(None) == chosen
+
+
+@pytest.mark.parametrize(("best_of", "points"), [(None, 1), (1, 1), (3, 2), (5, 3), (7, 4)])
+def test_points_to_win_are_the_majority(best_of: int | None, points: int) -> None:
+    assert points_to_win(best_of) == points
+
+
+@pytest.mark.parametrize("best_of", [0, -1, 2, 4])
+def test_best_of_needs_a_positive_odd_number(best_of: int) -> None:
+    with pytest.raises(ValueError, match="positive odd"):
+        GameSettings(best_of=best_of)
+
+
+def test_best_of_and_hard_mode_are_different_modes() -> None:
+    with pytest.raises(ValueError, match="different modes"):
+        GameSettings(time_limit=60, best_of=5)

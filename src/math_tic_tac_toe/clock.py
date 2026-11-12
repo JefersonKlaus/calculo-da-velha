@@ -1,5 +1,6 @@
 """Chess clock for hard mode: each player has a fixed amount of time for the
-whole match, and only the player whose turn it is uses it up.
+whole match, and only the player whose turn it is uses it up. Also the
+countdown of an open question: a few seconds to answer it.
 
 Pure logic (no Flet): the current time comes from ``now``, so tests can
 control it.
@@ -58,3 +59,20 @@ class ChessClock:
         if self._running is not None and self.remaining(self._running) <= 0:
             return self._running
         return None
+
+
+class Countdown:
+    """Counts down ``seconds`` from the moment it is created (e.g. the time
+    to answer an open question)."""
+
+    def __init__(self, seconds: float, now: TimeSource = time.monotonic) -> None:
+        self._now = now
+        self._deadline = now() + seconds
+
+    def remaining(self) -> float:
+        """Seconds left (never negative)."""
+        return max(0.0, self._deadline - self._now())
+
+    @property
+    def expired(self) -> bool:
+        return self.remaining() <= 0

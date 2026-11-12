@@ -3,6 +3,7 @@ the answer choices, one right and the others close to it."""
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from random import Random
@@ -23,6 +24,13 @@ class Question:
 
     def is_correct(self, response: int) -> bool:
         return response == self.answer
+
+    @property
+    def largest_number(self) -> int:
+        """The biggest number of the calculation, answer included: 32 for
+        ``4 × 8`` (= 32), 15 for ``15 − 9`` (= 6), 70 for ``70 ÷ 7`` (= 10).
+        Prompts only hold digits and math symbols."""
+        return max(self.answer, *(int(number) for number in re.findall(r"\d+", self.prompt)))
 
 
 class QuestionGenerator:

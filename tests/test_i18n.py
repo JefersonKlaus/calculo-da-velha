@@ -52,7 +52,7 @@ def test_translator_formats_values() -> None:
 
 
 def test_pieces_rebuild_the_same_text() -> None:
-    values = {"player": "O"}
+    values = {"player": "O", "points": 3}  # every placeholder used by the texts
     for language in Language:
         translator = translator_for(language)
         for key in TextKey:

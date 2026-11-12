@@ -9,15 +9,18 @@ TEXTS = {
     TextKey.GAME_OVER_DRAW: "Fim de jogo: empate!",
     TextKey.RAN_OUT_OF_TIME: "{player} ficou sem tempo.",
     TextKey.WRONG_ANSWER: "Resposta incorreta.",
+    TextKey.TIME_UP: "Tempo esgotado!",
     TextKey.SOLVE_QUESTION: "Resolva a conta",
     TextKey.CANCEL: "Cancelar",
     TextKey.RESTART: "Recomeçar",
     TextKey.PLAY_AGAIN: "Jogar novamente",
     TextKey.CONFIRM_RESTART_TITLE: "Recomeçar a partida?",
-    TextKey.CONFIRM_RESTART_MESSAGE: "A partida atual será perdida.",
+    TextKey.CONFIRM_LEAVE_TITLE: "Sair da partida?",
+    TextKey.MATCH_WILL_BE_LOST: "A partida atual será perdida.",
+    TextKey.LEAVE: "Sair",
     TextKey.SETTINGS_TITLE: "Configurações",
     TextKey.SETTINGS_HINT: (
-        "Em azul: opções selecionadas. Toque em uma opção para marcar ou desmarcar."
+        "Em rosa: opções selecionadas. Toque em uma opção para marcar ou desmarcar."
     ),
     TextKey.OPERATION: "Operação",
     TextKey.TIMES_TABLE: "Tabuada",
@@ -29,4 +32,8 @@ TEXTS = {
     TextKey.TIME_PER_PLAYER: "Tempo por jogador",
     TextKey.START: "Começar",
     TextKey.OPEN_SETTINGS: "Configurações",
+    TextKey.BEST_OF_FIVE: "Melhor de 5",
+    TextKey.POINTS_TO_WIN: "Vence quem fizer {points}",
+    TextKey.POINT_FOR: "Ponto para {player}!",
+    TextKey.POINTS_FOR: "{points} pontos para {player}!",
 }

@@ -1,5 +1,6 @@
 """Button below the board that starts a new match. It is always shown:
-"Restart" while the match is on, "Play again" once it ends."""
+"Restart" while the match is on, "Play again" once it ends. It is a navy
+pill, so it does not compete with the board."""
 
 from __future__ import annotations
 
@@ -8,7 +9,7 @@ from collections.abc import Callable
 import flet as ft
 
 from .layout import ScreenLayout
-from .styles import square_button_style
+from .styles import secondary_button_style
 
 
 class RestartButton:
@@ -18,7 +19,7 @@ class RestartButton:
         self.control = ft.FilledButton(
             content=self._label,
             icon=ft.Icons.REPLAY,
-            style=square_button_style(),
+            style=secondary_button_style(),
             on_click=lambda _: on_restart(),
         )
         self.apply_layout(layout)

@@ -2,8 +2,10 @@
 division, the times tables. The play button starts a match with them.
 
 Everything starts selected; each tap selects or unselects one option. A hint
-below the title explains that the options in blue are the selected ones.
-Below "Play", the red "Hard mode" button starts a timed match instead.
+below the title explains that the options in pink are the selected ones.
+Below the pink "Play" button, two other modes share a row: the gold "Best of
+5" button (points: the first to 3 lines wins) and the red "Hard mode" button
+(a timed match).
 """
 
 from __future__ import annotations
@@ -26,9 +28,12 @@ from .layout import (
 from .square_button import square_button, square_label
 from .styles import (
     HINT_COLOR,
+    SECTION_LABEL_COLOR,
+    best_of_button_style,
     hard_mode_button_style,
+    mode_button_padding,
     option_button_style,
-    square_button_style,
+    primary_button_style,
 )
 from .title_view import TitleView
 
@@ -40,6 +45,7 @@ class SettingsLabels:
     operation: str
     times_table: str
     play: str
+    best_of: str
     hard_mode: str
 
 
@@ -49,6 +55,7 @@ class SettingsView:
         labels: SettingsLabels,
         settings: GameSettings,
         on_play: Callable[[GameSettings], None],
+        on_best_of: Callable[[GameSettings], None],
         on_hard_mode: Callable[[GameSettings], None],
         refresh: Callable[[], None],
         layout: ScreenLayout,
@@ -101,16 +108,25 @@ class SettingsView:
         self.play_button = ft.FilledButton(
             content=self._play_label,
             icon=ft.Icons.PLAY_ARROW,
-            style=square_button_style(),
+            style=primary_button_style(),
             on_click=lambda _: on_play(self._settings),
         )
-        self._hard_mode_label = ft.Text(labels.hard_mode, weight=ft.FontWeight.BOLD)
+        self._best_of_label = _mode_label(labels.best_of)
+        self.best_of_button = ft.FilledButton(
+            content=self._best_of_label,
+            icon=ft.Icons.EMOJI_EVENTS,
+            style=best_of_button_style(),
+            on_click=lambda _: on_best_of(self._settings),
+        )
+        self._hard_mode_label = _mode_label(labels.hard_mode)
         self.hard_mode_button = ft.FilledButton(
             content=self._hard_mode_label,
             icon=ft.Icons.TIMER,
             style=hard_mode_button_style(),
             on_click=lambda _: on_hard_mode(self._settings),
         )
+        # Side by side: together as wide (and as tall) as the Play button.
+        self._mode_row = ft.Row([self.best_of_button, self.hard_mode_button], tight=True)
         self.control = ft.Column(
             [
                 self._title.control,
@@ -119,7 +135,7 @@ class SettingsView:
                 self._operation_row,
                 self.table_section,
                 self.play_button,
-                self.hard_mode_button,
+                self._mode_row,
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=SECTION_SPACING,
@@ -145,10 +161,17 @@ class SettingsView:
             row.spacing = layout.cell_spacing
         for button in self.table_buttons.values():
             button.width = button.height = layout.table_button_size
-        for button in (self.play_button, self.hard_mode_button):
-            button.width = layout.board_width
+        self.play_button.width = layout.board_width
+        self.play_button.height = layout.restart_height
+        self._mode_row.spacing = layout.cell_spacing
+        # Icons and margins grow with the screen, so the labels always fit.
+        padding = mode_button_padding(layout.mode_button_padding)
+        self.best_of_button.style = best_of_button_style(padding, layout.restart_font_size)
+        self.hard_mode_button.style = hard_mode_button_style(padding, layout.restart_font_size)
+        for button in (self.best_of_button, self.hard_mode_button):
+            button.width = layout.mode_button_width
             button.height = layout.restart_height
-        for label in (self._play_label, self._hard_mode_label):
+        for label in (self._play_label, self._best_of_label, self._hard_mode_label):
             label.size = layout.restart_font_size
         self._show_selection()
 
@@ -175,11 +198,17 @@ class SettingsView:
         self.table_section.visible = settings.uses_tables
 
 
+def _mode_label(text: str) -> ft.Text:
+    # One line: the mode buttons are sized so that their labels fit.
+    return ft.Text(text, weight=ft.FontWeight.BOLD, max_lines=1, no_wrap=True)
+
+
 def _section_label(text: str) -> ft.Text:
     # Fixed line height and a single line: the layout relies on its height.
     return ft.Text(
         text,
         weight=ft.FontWeight.BOLD,
+        color=SECTION_LABEL_COLOR,
         style=ft.TextStyle(height=LINE_HEIGHT),
         max_lines=1,
     )
